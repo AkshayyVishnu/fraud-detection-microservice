@@ -1,1 +1,11 @@
-"data/dataset/creditcard.csv" 
+__pycache__/
+*.pyc
+.DS_Store
+venv/
+env/
+node_modules/
+.idea/
+.vscode/
+data/dataset/creditcard.csv
+__pycache__/
+*.pyc

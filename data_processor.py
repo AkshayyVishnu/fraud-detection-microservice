@@ -86,63 +86,115 @@ def build_fraud_network(time_window_seconds=1800, similarity_threshold=0.5, max_
     if df is None:
         return {'nodes': [], 'edges': [], 'sessions': [], 'stats': {}}
     
-    # Focus on fraud transactions only for speed
+    # Get fraud transactions (high risk)
     fraud_df = df[df['Class'] == 1].head(max_nodes).copy()
+    fraud_df['risk_score'] = 0.95  # High risk base score
+    
+    # Get sample of legitimate transactions (low/medium risk)
+    # We'll take about 50% as many legit nodes as fraud nodes to keep graph focused but varied
+    legit_count = min(len(df[df['Class'] == 0]), max(20, int(max_nodes * 0.5)))
+    legit_df = df[df['Class'] == 0].sample(n=legit_count, random_state=42).copy()
+    
+    # Simulate risk scores for legit transactions (mostly low, some medium)
+    # 80% low risk (0.0-0.3), 20% medium risk (0.3-0.7)
+    legit_df['risk_score'] = np.random.choice(
+        [np.random.uniform(0.05, 0.3), np.random.uniform(0.35, 0.65)],
+        size=len(legit_df),
+        p=[0.8, 0.2]
+    )
+    
+    # Combine and sort by time
+    combined_df = pd.concat([fraud_df, legit_df]).sort_values('Time')
     
     # Build nodes
     nodes = []
-    for idx, row in fraud_df.iterrows():
+    for idx, row in combined_df.iterrows():
         node = {
             'id': f"TXN_{idx:06d}",
             'amount': float(row['Amount']),
             'time': float(row['Time']),
             'time_label': format_time(row['Time']),
-            'is_fraud': True,
-            'risk_score': 0.85,  # Simplified - all fraud is high risk
+            'is_fraud': bool(row['Class'] == 1),
+            'risk_score': float(row.get('risk_score', 0)),
             'v14': float(row['V14']),
-            'v17': float(row['V17']),
+            'v17': float(row['V17'])
         }
         nodes.append(node)
     
-    # Build edges - simplified: only temporal connections between fraud
+    # Build edges (temporal connections)
     edges = []
-    node_list = list(fraud_df.iterrows())
+    # Create a list for faster iteration
+    node_list = list(enumerate(zip(combined_df.index, combined_df.to_dict('records'))))
     
-    for i, (idx1, row1) in enumerate(node_list):
+    for i, (idx_pos, (idx1, row1)) in enumerate(node_list):
         # Only check next few nodes (temporal ordering) for speed
-        for j in range(i+1, min(i+10, len(node_list))):
-            idx2, row2 = node_list[j]
+        for j in range(i+1, min(i+15, len(node_list))):
+            idx_pos2, (idx2, row2) = node_list[j]
             time_diff = abs(row1['Time'] - row2['Time'])
             
             if time_diff < time_window_seconds:
+                # Stronger connection for fraud-fraud
+                is_both_fraud = (row1['Class'] == 1 and row2['Class'] == 1)
+                
                 strength = 0.8 if time_diff < 300 else 0.4
-                edges.append({
-                    'source': f"TXN_{idx1:06d}",
-                    'target': f"TXN_{idx2:06d}",
-                    'types': ['temporal_strong' if time_diff < 300 else 'temporal', 'confirmed_fraud'],
-                    'strength': strength,
-                    'time_diff': time_diff,
-                    'similarity': 0.7
-                })
+                if is_both_fraud:
+                    strength += 0.2
+                
+                # Connect if valid
+                if strength > 0.3:
+                    edges.append({
+                        'source': f"TXN_{idx1:06d}",
+                        'target': f"TXN_{idx2:06d}",
+                        'types': ['temporal_strong' if time_diff < 300 else 'temporal', 
+                                 'confirmed_fraud' if is_both_fraud else 'potential_link'],
+                        'strength': min(1.0, strength),
+                        'time_diff': time_diff,
+                        'similarity': calculate_feature_similarity(row1, row2)
+                    })
     
-    # Detect fraud sessions
-    sessions = detect_fraud_sessions(fraud_df)
-    
-    _network_cache = {
-        'nodes': nodes,
-        'edges': edges,
-        'sessions': sessions,
-        'stats': {
-            'total_nodes': len(nodes),
-            'total_edges': len(edges),
-            'fraud_count': len(fraud_df),
-            'sessions_detected': len(sessions)
+def get_cluster_explanation(session_id, nodes):
+    """
+    Generate SHAP-like explanations for a cluster/session.
+    Since we don't have a live model, we calculate feature deviations
+    from the legitimate baseline to simulate SHAP contribution.
+    """
+    # Filter nodes for this session
+    session_nodes = [n for n in nodes if n.get('id') in session_id or session_id == 'all']
+    if not session_nodes:
+        return []
+
+    # Calculate average feature values for cluster
+    avg_v14 = np.mean([n.get('v14', 0) for n in session_nodes])
+    avg_v17 = np.mean([n.get('v17', 0) for n in session_nodes])
+    avg_amount = np.mean([n.get('amount', 0) for n in session_nodes])
+
+    # Simplified SHAP-like contributors (deviation from 'normal')
+    explanations = [
+        {
+            'feature': 'V14 (Behavior)',
+            'value': avg_v14,
+            'importance': abs(avg_v14 + 10) / 20.0, # Mock importance based on deviation
+            'contribution': 'negative' if avg_v14 < -5 else 'positive',
+            'description': 'Abnormal transaction pattern detected'
+        },
+        {
+            'feature': 'V17 (Identity)',
+            'value': avg_v17,
+            'importance': abs(avg_v17 + 5) / 15.0,
+            'contribution': 'negative' if avg_v17 < -5 else 'positive',
+            'description': 'Identity verification anomaly'
+        },
+        {
+            'feature': 'Time Burst',
+            'value': len(session_nodes),
+            'importance': min(0.8, len(session_nodes) * 0.1),
+            'contribution': 'positive',
+            'description': 'High velocity transaction burst'
         }
-    }
+    ]
     
-    print(f"✓ Network built: {len(nodes)} nodes, {len(edges)} edges")
-    
-    return _network_cache
+    # Sort by importance
+    return sorted(explanations, key=lambda x: x['importance'], reverse=True)
 
 
 def check_connection(row1, row2, idx1, idx2, time_window, sim_threshold):
