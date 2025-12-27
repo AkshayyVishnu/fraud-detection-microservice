@@ -152,7 +152,7 @@
         </section>
 
         <!-- Main Dashboard Grid -->
-        <div class="dashboard-grid">
+        <div class="dashboard-grid-extended">
             <!-- Fraud Network Graph -->
             <section class="card card-large">
                 <div class="card-header">
@@ -250,6 +250,92 @@
                                 <span class="risk-dot risk-dot-high"></span>
                                 <span>High Risk</span>
                                 <span class="risk-percent" id="riskPercentHigh">--%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Fraud Time Machine -->
+            <section class="time-machine-card">
+                <div class="time-machine-header">
+                    <h2 class="time-machine-title">
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        Fraud Time Machine
+                        <span class="time-machine-badge">Temporal Analysis</span>
+                    </h2>
+                    <div class="velocity-indicator" id="velocityIndicator">
+                        <span class="velocity-label">Fraud Velocity</span>
+                        <div class="velocity-bar">
+                            <div class="velocity-fill low" id="velocityFill"></div>
+                        </div>
+                        <span class="velocity-value" id="velocityValue">0.2x</span>
+                    </div>
+                </div>
+
+                <!-- Time Axis -->
+                <div class="time-axis">
+                    <span class="time-axis-label">00:00</span>
+                    <span class="time-axis-label">06:00</span>
+                    <span class="time-axis-label">12:00</span>
+                    <span class="time-axis-label">18:00</span>
+                    <span class="time-axis-label">24:00</span>
+                    <span class="time-axis-label">30:00</span>
+                    <span class="time-axis-label">36:00</span>
+                    <span class="time-axis-label">42:00</span>
+                    <span class="time-axis-label">48:00</span>
+                </div>
+
+                <!-- Temporal Heatmap -->
+                <div class="temporal-heatmap">
+                    <div class="heatmap-timeline" id="temporalHeatmap">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="heatmap-row-labeled">
+                            <span class="heatmap-label">Loading...</span>
+                            <div class="heatmap-cells">
+                                <div class="heatmap-cell-enhanced skeleton-node" style="animation-delay: 0s"></div>
+                                <div class="heatmap-cell-enhanced skeleton-node" style="animation-delay: 0.1s"></div>
+                                <div class="heatmap-cell-enhanced skeleton-node" style="animation-delay: 0.2s"></div>
+                                <div class="heatmap-cell-enhanced skeleton-node" style="animation-delay: 0.3s"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Heatmap Legend -->
+                <div class="heatmap-legend-compact">
+                    <div class="legend-scale">
+                        <span class="legend-scale-label">Safe</span>
+                        <div class="legend-scale-bar"></div>
+                        <span class="legend-scale-label">Critical</span>
+                    </div>
+                </div>
+
+                <!-- Detected Fraud Sessions -->
+                <div class="sessions-container">
+                    <div class="sessions-header">
+                        <span class="sessions-title">Detected Attack Windows</span>
+                        <span class="sessions-count" id="sessionsCount">0</span>
+                    </div>
+                    <div class="sessions-list" id="sessionsList">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="session-card">
+                            <div class="session-icon">
+                                <svg viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="session-info">
+                                <div class="session-title">Loading fraud sessions...</div>
+                                <div class="session-meta">
+                                    <span class="session-stat">Analyzing temporal patterns</span>
+                                </div>
                             </div>
                         </div>
                     </div>
