@@ -1,1 +1,41 @@
-"data/dataset/creditcard.csv" 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Data
+data/
+*.csv
+
+# Models
+models/
+*.pkl
+*.pkl.gz
+*.h5
+*.hdf5
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Optuna
+*.db
+*.sqlite
+*.sqlite3
