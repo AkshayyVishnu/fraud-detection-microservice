@@ -257,6 +257,94 @@ def evaluate_model(model, X_test, y_test, threshold=0.2):
     return metrics
 
 
+def evaluate_multiple_thresholds(model, X_test, y_test, thresholds=None):
+    """
+    Evaluate model at multiple thresholds and output confusion matrices with metrics.
+    
+    Args:
+        model: Trained model
+        X_test: Test features
+        y_test: Test labels
+        thresholds: List of thresholds to evaluate. If None, uses default range.
+    
+    Returns:
+        Dictionary with threshold as key and metrics as value
+    """
+    # Get probability predictions
+    y_pred_proba = model.predict_proba(X_test)[:, 1]
+    
+    # Default thresholds if not provided
+    if thresholds is None:
+        thresholds = [0.1, 0.2, 0.25, 0.3, 0.35, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    
+    results = {}
+    
+    print("\n" + "=" * 80)
+    print("Evaluation at Multiple Thresholds")
+    print("=" * 80)
+    print(f"{'Threshold':<12} {'Precision':<12} {'Recall':<12} {'F1-Score':<12} {'Accuracy':<12} {'TN':<8} {'FP':<8} {'FN':<8} {'TP':<8}")
+    print("-" * 80)
+    
+    for threshold in thresholds:
+        # Binary predictions at threshold
+        y_pred = (y_pred_proba >= threshold).astype(int)
+        
+        # Confusion matrix
+        cm = confusion_matrix(y_test, y_pred)
+        tn, fp, fn, tp = cm.ravel()
+        
+        # Calculate metrics
+        precision = precision_score(y_test, y_pred, zero_division=0)
+        recall = recall_score(y_test, y_pred, zero_division=0)
+        f1 = f1_score(y_test, y_pred, zero_division=0)
+        accuracy = accuracy_score(y_test, y_pred)
+        
+        # Store results
+        results[threshold] = {
+            "precision": precision,
+            "recall": recall,
+            "f1_score": f1,
+            "accuracy": accuracy,
+            "confusion_matrix": cm,
+            "tn": int(tn),
+            "fp": int(fp),
+            "fn": int(fn),
+            "tp": int(tp),
+        }
+        
+        # Print formatted results
+        print(f"{threshold:<12.2f} {precision:<12.4f} {recall:<12.4f} {f1:<12.4f} {accuracy:<12.4f} {int(tn):<8} {int(fp):<8} {int(fn):<8} {int(tp):<8}")
+    
+    print("=" * 80)
+    
+    # Print Precision and Recall Summary Table
+    print("\n" + "=" * 80)
+    print("Precision and Recall Summary")
+    print("=" * 80)
+    print(f"{'Threshold':<12} {'Precision':<15} {'Recall':<15} {'F1-Score':<15}")
+    print("-" * 80)
+    for threshold in thresholds:
+        metrics = results[threshold]
+        print(f"{threshold:<12.2f} {metrics['precision']:<15.4f} {metrics['recall']:<15.4f} {metrics['f1_score']:<15.4f}")
+    print("=" * 80)
+    
+    # Print detailed confusion matrices
+    print("\nDetailed Confusion Matrices:")
+    print("=" * 80)
+    for threshold in thresholds:
+        metrics = results[threshold]
+        print(f"\nThreshold: {threshold:.2f}")
+        print(f"Confusion Matrix:")
+        print(f"  {metrics['confusion_matrix']}")
+        print(f"  TN: {metrics['tn']}, FP: {metrics['fp']}, FN: {metrics['fn']}, TP: {metrics['tp']}")
+        print(f"  Precision: {metrics['precision']:.4f}")
+        print(f"  Recall: {metrics['recall']:.4f}")
+        print(f"  F1-Score: {metrics['f1_score']:.4f}")
+        print(f"  Accuracy: {metrics['accuracy']:.4f}")
+    
+    return results
+
+
 def calibrate_model(model, X_train, y_train):
     """
     Calibrate model probabilities using isotonic regression.
@@ -327,7 +415,7 @@ def main():
     print("\n6. Evaluating model on test set (first time seeing test data)...")
     metrics = evaluate_model(final_model, X_test, y_test, threshold=0.2)
     
-    print(f"\n   Test Set Results:")
+    print(f"\n   Test Set Results (threshold=0.2):")
     print(f"   PR-AUC: {metrics['pr_auc']:.4f}")
     print(f"   Accuracy: {metrics['accuracy']:.4f}")
     print(f"   Precision: {metrics['precision']:.4f}")
@@ -337,21 +425,30 @@ def main():
     print(f"   {metrics['confusion_matrix']}")
     print(f"   TN: {metrics['tn']}, FP: {metrics['fp']}, FN: {metrics['fn']}, TP: {metrics['tp']}")
     
+    # Evaluate at multiple thresholds
+    print("\n6b. Evaluating model at multiple thresholds...")
+    threshold_results = evaluate_multiple_thresholds(final_model, X_test, y_test)
+    
     # Calibrate model
     print("\n7. Calibrating model probabilities...")
     calibrated_model = calibrate_model(final_model, X_train, y_train)
     
     # Evaluate calibrated model
+    print("\n8. Evaluating calibrated model...")
     metrics_cal = evaluate_model(calibrated_model, X_test, y_test, threshold=0.2)
-    print(f"\n   Calibrated Model - Test Set Results:")
+    print(f"\n   Calibrated Model - Test Set Results (threshold=0.2):")
     print(f"   PR-AUC: {metrics_cal['pr_auc']:.4f}")
     print(f"   Accuracy: {metrics_cal['accuracy']:.4f}")
     print(f"   Precision: {metrics_cal['precision']:.4f}")
     print(f"   Recall: {metrics_cal['recall']:.4f}")
     print(f"   F1-Score: {metrics_cal['f1_score']:.4f}")
     
+    # Evaluate calibrated model at multiple thresholds
+    print("\n8b. Evaluating calibrated model at multiple thresholds...")
+    threshold_results_cal = evaluate_multiple_thresholds(calibrated_model, X_test, y_test)
+    
     # Save models and scaler (if needed)
-    print("\n8. Saving models...")
+    print("\n9. Saving models...")
     joblib.dump(final_model, config.TRAINED_MODEL_PATH)
     joblib.dump(calibrated_model, config.CALIBRATED_MODEL_PATH)
     joblib.dump(best_params, config.MODELS_DIR / "best_params.pkl")

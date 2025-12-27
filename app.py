@@ -22,6 +22,19 @@ except ImportError as e:
     DATA_AVAILABLE = False
     print(f"⚠ Data processor not available: {e}")
 
+# Try to import evaluation and loss calculation modules
+try:
+    import joblib
+    import config
+    from eval import evaluate_model_at_thresholds
+    from data_preprocessing import load_dataset as load_dataset_preprocessing
+    from loss import compute_optimal_threshold
+    MODEL_AVAILABLE = True
+    print("✓ Model evaluation modules loaded successfully")
+except ImportError as e:
+    MODEL_AVAILABLE = False
+    print(f"⚠ Model evaluation modules not available: {e}")
+
 app = Flask(__name__)
 
 # ============================================================================
@@ -295,6 +308,101 @@ def get_real_temporal():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/optimize-threshold', methods=['POST'])
+def optimize_threshold():
+    """
+    POST /api/optimize-threshold
+    
+    Finds the optimal probability threshold that minimizes total cost
+    based on false positive and false negative costs.
+    
+    Request body:
+    {
+        "cost_fp": float,  // Cost per false positive
+        "cost_fn": float   // Cost per false negative
+    }
+    
+    Response:
+    {
+        "all_thresholds": [
+            {
+                "probability": float,
+                "fp": int,
+                "fn": int,
+                "cost": float,
+                "precision": float,
+                "recall": float,
+                "f1_score": float,
+                "accuracy": float,
+                "tp": int,
+                "tn": int
+            },
+            ...
+        ],
+        "optimal": {
+            "probability": float,
+            "fp": int,
+            "fn": int,
+            "cost": float,
+            ...
+        }
+    }
+    """
+    if not MODEL_AVAILABLE:
+        return jsonify({"error": "Model evaluation modules not available"}), 503
+    
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    cost_fp = data.get('cost_fp')
+    cost_fn = data.get('cost_fn')
+    
+    if cost_fp is None or cost_fn is None:
+        return jsonify({"error": "Both cost_fp and cost_fn are required"}), 400
+    
+    try:
+        cost_fp = float(cost_fp)
+        cost_fn = float(cost_fn)
+    except (ValueError, TypeError):
+        return jsonify({"error": "cost_fp and cost_fn must be valid numbers"}), 400
+    
+    if cost_fp < 0 or cost_fn < 0:
+        return jsonify({"error": "Costs must be non-negative"}), 400
+    
+    try:
+        # Load the trained model
+        model = joblib.load(config.TRAINED_MODEL_PATH)
+        
+        # Load dataset
+        df = load_dataset_preprocessing()
+        
+        # Sort by Time (same as training)
+        df = df.sort_values("Time").reset_index(drop=True)
+        
+        # Prepare features and target
+        X = df.drop("Class", axis=1)
+        y = df["Class"]
+        
+        # Create time-based train-test split (same as training: 80/20)
+        split_idx = int(0.8 * len(df))
+        X_test = X.iloc[split_idx:]
+        y_test = y.iloc[split_idx:]
+        
+        # Evaluate model at multiple thresholds
+        eval_results = evaluate_model_at_thresholds(model, X_test, y_test)
+        
+        # Calculate costs and find optimal threshold
+        result = compute_optimal_threshold(eval_results, cost_fp, cost_fn)
+        
+        return jsonify(result)
+        
+    except FileNotFoundError as e:
+        return jsonify({"error": f"Model file not found: {str(e)}"}), 404
+    except Exception as e:
+        return jsonify({"error": f"Error during optimization: {str(e)}"}), 500
+
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("  🛡️  THE MERCHANT SHIELD - Fraud Detection API")
@@ -310,6 +418,7 @@ if __name__ == '__main__':
     print("  • GET  /api/temporal-data")
     print("  • GET  /api/fraud-network    [NEW]")
     print("  • GET  /api/real-transactions [NEW]")
+    print("  • POST /api/optimize-threshold [NEW]")
     print("\n" + "="*60 + "\n")
     
     app.run(debug=True, port=5000)

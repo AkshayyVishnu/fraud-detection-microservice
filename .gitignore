@@ -12,7 +12,8 @@ ENV/
 # Data
 data/
 *.csv
-
+data/
+creditcard.csv/
 # Models
 models/
 *.pkl
