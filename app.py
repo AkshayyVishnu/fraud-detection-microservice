@@ -4,9 +4,12 @@ A lightweight fraud prevention microservice for small e-commerce businesses
 """
 
 from flask import Flask, render_template, jsonify, request
+from flask_socketio import SocketIO, emit
 from datetime import datetime
 import random
 import json
+import threading
+import time
 
 # Try to import data processor for real dataset
 try:
@@ -22,6 +25,25 @@ except ImportError as e:
     DATA_AVAILABLE = False
     print(f"⚠ Data processor not available: {e}")
 
+# Try to import ML model
+try:
+    from model_explainer import (
+        explain_transaction_from_request,
+        load_model,
+        predict_fraud_probability,
+        extract_features_from_request
+    )
+    MODEL_AVAILABLE = True
+    print("✓ ML model loaded successfully")
+    # Pre-load model on startup
+    load_model()
+except ImportError as e:
+    MODEL_AVAILABLE = False
+    print(f"⚠ ML model not available: {e}")
+except Exception as e:
+    MODEL_AVAILABLE = False
+    print(f"⚠ Error loading ML model: {e}")
+
 # Try to import evaluation and loss calculation modules
 try:
     import joblib
@@ -29,13 +51,17 @@ try:
     from eval import evaluate_model_at_thresholds
     from data_preprocessing import load_dataset as load_dataset_preprocessing
     from loss import compute_optimal_threshold
-    MODEL_AVAILABLE = True
+    EVAL_MODULES_AVAILABLE = True
     print("✓ Model evaluation modules loaded successfully")
 except ImportError as e:
-    MODEL_AVAILABLE = False
+    EVAL_MODULES_AVAILABLE = False
     print(f"⚠ Model evaluation modules not available: {e}")
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'fraud-detection-secret-key-change-in-production'
+
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # ============================================================================
 # MOCK DATA - Will be replaced with actual ML model predictions
@@ -103,7 +129,7 @@ def analyze_risk():
     """
     POST /api/analyze-risk
     
-    Analyzes a transaction and returns fraud risk assessment.
+    Analyzes a transaction and returns fraud risk assessment using ML model.
     
     Request body:
     {
@@ -119,7 +145,8 @@ def analyze_risk():
         "risk_level": "LOW" | "MEDIUM" | "HIGH",
         "temporal_context": {...},
         "explanation": {...},
-        "recommendation": string
+        "recommendation": string,
+        "shap_explanation": [...]
     }
     """
     data = request.get_json()
@@ -127,9 +154,54 @@ def analyze_risk():
     if not data:
         return jsonify({"error": "No data provided"}), 400
     
-    # For now, use mock prediction
-    # TODO: Replace with actual model.predict() call
-    fraud_prob = random.uniform(0.05, 0.95)
+    # Use ML model if available, otherwise fallback to mock
+    if MODEL_AVAILABLE:
+        try:
+            # Get real prediction and SHAP explanation
+            result = explain_transaction_from_request(data)
+            fraud_prob = result['fraud_probability']
+            is_fraud = result['is_fraud']
+            shap_explanation = result['shap_explanation']
+            
+            # Format SHAP explanation for response
+            explanation_list = [
+                {
+                    "feature": exp['feature'],
+                    "value": exp['value'],
+                    "importance": exp['importance'],
+                    "contribution": exp['contribution'],
+                    "description": exp['description']
+                }
+                for exp in shap_explanation
+            ]
+            
+        except Exception as e:
+            print(f"Error in ML prediction: {e}")
+            # Fallback to mock
+            fraud_prob = random.uniform(0.05, 0.95)
+            is_fraud = fraud_prob > 0.5
+            explanation_list = [
+                {
+                    "feature": "Error",
+                    "value": 0,
+                    "importance": 0,
+                    "contribution": "neutral",
+                    "description": f"Model error: {str(e)}"
+                }
+            ]
+    else:
+        # Fallback to mock prediction
+        fraud_prob = random.uniform(0.05, 0.95)
+        is_fraud = fraud_prob > 0.5
+        explanation_list = [
+            {
+                "feature": "Mock",
+                "value": 0,
+                "importance": 0,
+                "contribution": "neutral",
+                "description": "ML model not available - using mock data"
+            }
+        ]
     
     # Determine risk level
     if fraud_prob > 0.70:
@@ -145,7 +217,7 @@ def analyze_risk():
     # Build response with temporal context (placeholder)
     response = {
         "fraud_probability": round(fraud_prob, 4),
-        "is_fraud": fraud_prob > 0.5,
+        "is_fraud": is_fraud,
         "risk_level": risk_level,
         "temporal_context": {
             "recent_fraud_count": random.randint(0, 10),
@@ -155,12 +227,9 @@ def analyze_risk():
             "current_time_bucket_risk": random.choice(["LOW", "MODERATE", "HIGH", "CRITICAL"])
         },
         "explanation": {
-            "primary_factors": [
-                "Transaction amount analysis",
-                "Temporal pattern evaluation", 
-                "Historical behavior comparison"
-            ]
+            "primary_factors": [exp['feature'] for exp in explanation_list[:3]]
         },
+        "shap_explanation": explanation_list,
         "recommendation": recommendation
     }
     
@@ -172,6 +241,18 @@ def analyze_risk():
         **response
     }
     TRANSACTIONS.insert(0, transaction)
+    
+    # Emit via WebSocket if fraud detected
+    if is_fraud and fraud_prob > 0.7:
+        socketio.emit('fraud_alert', {
+            'transaction_id': transaction['id'],
+            'amount': transaction['amount'],
+            'fraud_probability': fraud_prob,
+            'timestamp': transaction['timestamp']
+        })
+    
+    # Emit new transaction via WebSocket
+    socketio.emit('new_transaction', transaction)
     
     return jsonify(response)
 
@@ -348,7 +429,7 @@ def optimize_threshold():
         }
     }
     """
-    if not MODEL_AVAILABLE:
+    if not EVAL_MODULES_AVAILABLE:
         return jsonify({"error": "Model evaluation modules not available"}), 503
     
     data = request.get_json()
@@ -408,6 +489,7 @@ if __name__ == '__main__':
     print("  🛡️  THE MERCHANT SHIELD - Fraud Detection API")
     print("="*60)
     print(f"\n  📊 Data: {'LOADED' if DATA_AVAILABLE else 'MOCK MODE'}")
+    print(f"  🤖 ML Model: {'LOADED' if MODEL_AVAILABLE else 'MOCK MODE'}")
     print("\n  📊 Dashboard:    http://127.0.0.1:5000/")
     print("  📋 Audit Log:    http://127.0.0.1:5000/audit")
     print("  🔍 Analyze:      http://127.0.0.1:5000/analyze")
@@ -421,5 +503,9 @@ if __name__ == '__main__':
     print("  • POST /api/optimize-threshold [NEW]")
     print("\n" + "="*60 + "\n")
     
-    app.run(debug=True, port=5000)
+    # Start transaction simulator
+    simulator = start_transaction_simulator()
+    
+    # Run with SocketIO (supports WebSocket)
+    socketio.run(app, debug=True, port=5000, host='127.0.0.1')
 
