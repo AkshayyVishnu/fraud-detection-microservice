@@ -60,14 +60,62 @@ def load_dataset(sample_size=500):
 
 
 def calculate_feature_similarity(row1, row2):
-    """Calculate simplified similarity using key fraud indicators only"""
-    # Use only V14 and V17 (fastest - they're the key fraud indicators)
+    """Calculate similarity using key fraud indicators V14 and V17"""
     v14_diff = abs(row1['V14'] - row2['V14'])
     v17_diff = abs(row1['V17'] - row2['V17'])
     
     # Similarity = 1 if very close, 0 if far apart
     sim = max(0, 1 - (v14_diff + v17_diff) / 20)
     return sim
+
+
+def calculate_anomaly_score(row, legit_means, legit_stds):
+    """
+    Calculate anomaly score based on feature deviation from legitimate baseline.
+    Higher score = more anomalous = more likely fraud.
+    Uses V14, V17, V12, V10 as key discriminators.
+    """
+    score = 0
+    features = ['V14', 'V17', 'V12', 'V10']
+    
+    for feat in features:
+        if feat in row and feat in legit_means:
+            z_score = abs(row[feat] - legit_means[feat]) / max(legit_stds[feat], 0.001)
+            score += min(z_score / 3, 1)  # Cap contribution at 1 per feature
+    
+    return min(score / len(features), 1.0)  # Normalize to 0-1
+
+
+def get_attack_signature(nodes):
+    """
+    Generate attack signature based on average feature values.
+    Returns a dict with pattern metrics for the cluster.
+    """
+    if not nodes:
+        return {'v14_avg': 0, 'v17_avg': 0, 'signature_type': 'unknown'}
+    
+    v14_avg = np.mean([n.get('v14', 0) for n in nodes])
+    v17_avg = np.mean([n.get('v17', 0) for n in nodes])
+    amount_avg = np.mean([n.get('amount', 0) for n in nodes])
+    amount_std = np.std([n.get('amount', 0) for n in nodes])
+    
+    # Classify attack signature type
+    if v14_avg < -10:
+        sig_type = 'High Anomaly (Behavioral)'
+    elif v17_avg < -8:
+        sig_type = 'Identity Breach'
+    elif amount_std > 500:
+        sig_type = 'Variable Amount Attack'
+    else:
+        sig_type = 'Standard Fraud Pattern'
+    
+    return {
+        'v14_avg': round(v14_avg, 2),
+        'v17_avg': round(v17_avg, 2),
+        'amount_avg': round(amount_avg, 2),
+        'amount_std': round(amount_std, 2),
+        'signature_type': sig_type
+    }
 
 
 def build_fraud_network(time_window_seconds=1800, similarity_threshold=0.5, max_nodes=50):
@@ -106,9 +154,17 @@ def build_fraud_network(time_window_seconds=1800, similarity_threshold=0.5, max_
     # Combine and sort by time
     combined_df = pd.concat([fraud_df, legit_df]).sort_values('Time')
     
-    # Build nodes
+    # Calculate legitimate baseline statistics for anomaly scoring
+    legit_only = df[df['Class'] == 0]
+    legit_means = {col: legit_only[col].mean() for col in ['V14', 'V17', 'V12', 'V10'] if col in legit_only.columns}
+    legit_stds = {col: legit_only[col].std() for col in ['V14', 'V17', 'V12', 'V10'] if col in legit_only.columns}
+    
+    # Build nodes with anomaly scores
     nodes = []
     for idx, row in combined_df.iterrows():
+        # Calculate anomaly score based on deviation from legitimate baseline
+        anomaly_score = calculate_anomaly_score(row, legit_means, legit_stds)
+        
         node = {
             'id': f"TXN_{idx:06d}",
             'amount': float(row['Amount']),
@@ -116,41 +172,55 @@ def build_fraud_network(time_window_seconds=1800, similarity_threshold=0.5, max_
             'time_label': format_time(row['Time']),
             'is_fraud': bool(row['Class'] == 1),
             'risk_score': float(row.get('risk_score', 0)),
+            'anomaly_score': round(anomaly_score, 3),  # New: for node sizing
             'v14': float(row['V14']),
-            'v17': float(row['V17'])
+            'v17': float(row['V17']),
+            'v12': float(row.get('V12', 0)),
+            'v10': float(row.get('V10', 0))
         }
         nodes.append(node)
     
-    # Build edges (temporal connections)
+    # Build edges with multiple connection types
     edges = []
-    # Create a list for faster iteration
     node_list = list(enumerate(zip(combined_df.index, combined_df.to_dict('records'))))
     
     for i, (idx_pos, (idx1, row1)) in enumerate(node_list):
-        # Only check next few nodes (temporal ordering) for speed
         for j in range(i+1, min(i+15, len(node_list))):
             idx_pos2, (idx2, row2) = node_list[j]
             time_diff = abs(row1['Time'] - row2['Time'])
             
+            # Calculate feature similarity
+            feature_sim = calculate_feature_similarity(row1, row2)
+            
+            # Determine connection type and strength
+            edge_types = []
+            strength = 0
+            
+            # Time-based connection
             if time_diff < time_window_seconds:
-                # Stronger connection for fraud-fraud
-                is_both_fraud = (row1['Class'] == 1 and row2['Class'] == 1)
-                
-                strength = 0.8 if time_diff < 300 else 0.4
-                if is_both_fraud:
-                    strength += 0.2
-                
-                # Connect if valid
-                if strength > 0.3:
-                    edges.append({
-                        'source': f"TXN_{idx1:06d}",
-                        'target': f"TXN_{idx2:06d}",
-                        'types': ['temporal_strong' if time_diff < 300 else 'temporal', 
-                                 'confirmed_fraud' if is_both_fraud else 'potential_link'],
-                        'strength': min(1.0, strength),
-                        'time_diff': time_diff,
-                        'similarity': calculate_feature_similarity(row1, row2)
-                    })
+                edge_types.append('temporal')
+                strength += 0.4 if time_diff < 300 else 0.2
+            
+            # Feature similarity connection (same attack signature)
+            if feature_sim > 0.7:
+                edge_types.append('attack_signature')
+                strength += feature_sim * 0.5
+            
+            # Both fraud - confirmed cluster
+            if row1['Class'] == 1 and row2['Class'] == 1:
+                edge_types.append('confirmed_fraud')
+                strength += 0.3
+            
+            # Only create edge if there's a valid connection
+            if edge_types and strength > 0.3:
+                edges.append({
+                    'source': f"TXN_{idx1:06d}",
+                    'target': f"TXN_{idx2:06d}",
+                    'types': edge_types,
+                    'strength': min(1.0, strength),
+                    'time_diff': time_diff,
+                    'similarity': feature_sim
+                })
     
 def get_cluster_explanation(session_id, nodes):
     """

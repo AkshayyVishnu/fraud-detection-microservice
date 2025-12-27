@@ -250,7 +250,7 @@ class FraudNetworkGraph {
             .alphaDecay(0.05)
             .velocityDecay(0.4);
 
-        // Create edges
+        // Create edges with type-based styling
         const edges = this.edgesGroup.selectAll('line')
             .data(this.edges)
             .enter()
@@ -260,7 +260,7 @@ class FraudNetworkGraph {
             .attr('stroke-width', d => Math.max(1, d.strength * 3))
             .attr('stroke-opacity', d => 0.3 + d.strength * 0.4)
             .attr('stroke-dasharray', d =>
-                d.types.includes('amount_pattern') ? '4,2' : 'none');
+                d.types && d.types.includes('attack_signature') ? '6,3' : 'none');
 
         // Create nodes
         const nodes = this.nodesGroup.selectAll('g')
@@ -273,9 +273,14 @@ class FraudNetworkGraph {
 
         console.log('[FraudNetwork] Created node groups:', nodes.size());
 
-        // Node circles with explicit styling
+        // Node circles - SIZE based on anomaly_score, not amount
+        // More anomalous = larger node (more visually prominent)
         nodes.append('circle')
-            .attr('r', d => Math.max(6, radiusScale(d.amount)))
+            .attr('r', d => {
+                // Use anomaly_score if available, otherwise fall back to amount-based sizing
+                const anomalySize = d.anomaly_score ? 6 + d.anomaly_score * 18 : null;
+                return anomalySize || Math.max(6, radiusScale(d.amount));
+            })
             .attr('fill', d => this.getNodeColor(d))
             .attr('stroke', d => d.is_fraud ? '#f85149' : 'rgba(255,255,255,0.3)')
             .attr('stroke-width', d => d.is_fraud ? 2 : 1)
@@ -415,13 +420,19 @@ class FraudNetworkGraph {
     }
 
     getEdgeColor(edge) {
-        if (edge.types.includes('confirmed_fraud')) {
-            return '#f85149';
+        // Check edge types array for type-based coloring
+        const types = edge.types || [];
+
+        if (types.includes('attack_signature')) {
+            return '#f0883e';  // Orange - same attack pattern
         }
-        if (edge.types.includes('temporal_strong')) {
-            return '#58a6ff';
+        if (types.includes('confirmed_fraud')) {
+            return '#f85149';  // Red - both are fraud
         }
-        return '#484f58';
+        if (types.includes('temporal')) {
+            return '#58a6ff';  // Blue - time proximity
+        }
+        return '#484f58';  // Gray - default
     }
 
     showTooltip(event, node) {

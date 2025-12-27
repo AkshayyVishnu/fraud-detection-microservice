@@ -100,20 +100,86 @@ class FraudTimeMachine {
     attachHeatmapInteractions() {
         const cells = this.elements.heatmap.querySelectorAll('.heatmap-cell-enhanced');
 
+        // Create tooltip element if it doesn't exist
+        if (!this.tooltip) {
+            this.tooltip = document.createElement('div');
+            this.tooltip.className = 'temporal-tooltip';
+            this.tooltip.style.cssText = `
+                position: fixed;
+                background: var(--color-surface-1);
+                border: 1px solid var(--color-border);
+                border-radius: 8px;
+                padding: 12px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                z-index: 1000;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.2s;
+                min-width: 180px;
+            `;
+            document.body.appendChild(this.tooltip);
+        }
+
         cells.forEach(cell => {
+            cell.addEventListener('mouseenter', (e) => {
+                const time = cell.dataset.time;
+                const txns = cell.dataset.transactions;
+                const frauds = cell.dataset.frauds;
+                const rate = cell.dataset.rate;
+                const risk = cell.dataset.risk;
+
+                const riskColors = {
+                    critical: '#f85149',
+                    high: '#f0883e',
+                    medium: '#e3b341',
+                    low: '#3fb950',
+                    none: '#8b949e'
+                };
+
+                this.tooltip.innerHTML = `
+                    <div style="font-weight:600; margin-bottom:8px; color:var(--color-text-primary);">
+                        ${time}
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px; font-size:12px;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:var(--color-text-secondary);">Transactions</span>
+                            <span style="font-weight:500;">${txns}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:var(--color-text-secondary);">Frauds Detected</span>
+                            <span style="font-weight:500; color:#f85149;">${frauds}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:var(--color-text-secondary);">Fraud Rate</span>
+                            <span style="font-weight:500;">${rate}%</span>
+                        </div>
+                        <div style="margin-top:6px; padding-top:6px; border-top:1px solid var(--color-border);">
+                            <span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:600; background:${riskColors[risk]}20; color:${riskColors[risk]};">
+                                ${risk.toUpperCase()} RISK
+                            </span>
+                        </div>
+                    </div>
+                `;
+
+                this.tooltip.style.opacity = '1';
+                this.tooltip.style.left = (e.clientX + 12) + 'px';
+                this.tooltip.style.top = (e.clientY + 12) + 'px';
+            });
+
+            cell.addEventListener('mousemove', (e) => {
+                this.tooltip.style.left = (e.clientX + 12) + 'px';
+                this.tooltip.style.top = (e.clientY + 12) + 'px';
+            });
+
+            cell.addEventListener('mouseleave', () => {
+                this.tooltip.style.opacity = '0';
+            });
+
             cell.addEventListener('click', () => {
                 const bucket = cell.dataset.bucket;
                 this.highlightBucket(bucket);
             });
         });
-    }
-
-    highlightBucket(bucketIndex) {
-        // Find transactions in this time bucket and highlight in network
-        if (window.fraudNetwork) {
-            // Could implement cross-highlighting here
-            console.log('Highlighting bucket:', bucketIndex);
-        }
     }
 
     renderSessions() {
@@ -139,8 +205,19 @@ class FraudTimeMachine {
             return;
         }
 
-        const html = this.sessions.slice(0, 5).map((session, index) => `
-            <div class="session-card" data-session="${session.id}" onclick="window.timeMachine.highlightSession('${session.id}')">
+        const html = this.sessions.slice(0, 5).map((session, index) => {
+            // Calculate velocity (transactions per minute)
+            const velocity = (session.count / Math.max(1, session.duration_minutes)).toFixed(1);
+            const riskLevel = velocity > 0.5 ? 'High Velocity' : velocity > 0.2 ? 'Moderate' : 'Normal';
+
+            return `
+            <div class="session-card" 
+                 data-session="${session.id}" 
+                 data-velocity="${velocity}"
+                 data-risk="${riskLevel}"
+                 onclick="window.timeMachine.highlightSession('${session.id}')"
+                 onmouseenter="window.timeMachine.showSessionTooltip(event, '${session.id}', ${index})"
+                 onmouseleave="window.timeMachine.hideSessionTooltip()">
                 <div class="session-icon">
                     <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
@@ -160,19 +237,76 @@ class FraudTimeMachine {
                                 <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
                                 <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
                             </svg>
-                            ${session.count} transactions
+                            ${session.count} txns
                         </span>
-                        <span class="session-stat">
-                            ${session.duration_minutes.toFixed(0)} min
-                        </span>
+                        <span class="session-stat velocity-badge ${velocity > 0.5 ? 'high' : ''}">${velocity}/min</span>
                     </div>
                 </div>
                 <span class="session-amount">$${session.total_amount.toFixed(0)}</span>
             </div>
-        `).join('');
+        `}).join('');
 
         this.elements.sessionsList.innerHTML = html;
         this.elements.sessionsCount.textContent = this.sessions.length;
+    }
+
+    showSessionTooltip(event, sessionId, index) {
+        const session = this.sessions[index];
+        if (!session) return;
+
+        const velocity = (session.count / Math.max(1, session.duration_minutes)).toFixed(2);
+        const avgAmount = (session.total_amount / session.count).toFixed(2);
+
+        // Determine attack pattern type
+        let patternType = 'Standard Fraud';
+        if (velocity > 0.5) patternType = 'Rapid Burst Attack';
+        else if (session.total_amount > 5000) patternType = 'High Value Fraud';
+        else if (session.count > 10) patternType = 'Volume Attack';
+
+        this.tooltip.innerHTML = `
+            <div style="font-weight:600; margin-bottom:8px; border-bottom:1px solid var(--color-border); padding-bottom:6px;">
+                Attack Window ${index + 1}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:12px;">
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--color-text-secondary);">Pattern Type</span>
+                    <span style="font-weight:500; color:#f85149;">${patternType}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--color-text-secondary);">Velocity</span>
+                    <span style="font-weight:500;">${velocity} txns/min</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--color-text-secondary);">Avg. Amount</span>
+                    <span style="font-weight:500;">$${avgAmount}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--color-text-secondary);">Duration</span>
+                    <span style="font-weight:500;">${session.duration_minutes} min</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--color-text-secondary);">Total at Risk</span>
+                    <span style="font-weight:600; color:#f0883e;">$${session.total_amount.toFixed(2)}</span>
+                </div>
+            </div>
+        `;
+
+        this.tooltip.style.opacity = '1';
+        this.tooltip.style.left = (event.clientX + 12) + 'px';
+        this.tooltip.style.top = (event.clientY + 12) + 'px';
+    }
+
+    hideSessionTooltip() {
+        if (this.tooltip) {
+            this.tooltip.style.opacity = '0';
+        }
+    }
+
+    highlightBucket(bucketIndex) {
+        // Find transactions in this time bucket and highlight in network
+        if (window.fraudNetwork) {
+            console.log('Highlighting bucket:', bucketIndex);
+        }
     }
 
     highlightSession(sessionId) {
