@@ -60,14 +60,62 @@ def load_dataset(sample_size=500):
 
 
 def calculate_feature_similarity(row1, row2):
-    """Calculate simplified similarity using key fraud indicators only"""
-    # Use only V14 and V17 (fastest - they're the key fraud indicators)
+    """Calculate similarity using key fraud indicators V14 and V17"""
     v14_diff = abs(row1['V14'] - row2['V14'])
     v17_diff = abs(row1['V17'] - row2['V17'])
     
     # Similarity = 1 if very close, 0 if far apart
     sim = max(0, 1 - (v14_diff + v17_diff) / 20)
     return sim
+
+
+def calculate_anomaly_score(row, legit_means, legit_stds):
+    """
+    Calculate anomaly score based on feature deviation from legitimate baseline.
+    Higher score = more anomalous = more likely fraud.
+    Uses V14, V17, V12, V10 as key discriminators.
+    """
+    score = 0
+    features = ['V14', 'V17', 'V12', 'V10']
+    
+    for feat in features:
+        if feat in row and feat in legit_means:
+            z_score = abs(row[feat] - legit_means[feat]) / max(legit_stds[feat], 0.001)
+            score += min(z_score / 3, 1)  # Cap contribution at 1 per feature
+    
+    return min(score / len(features), 1.0)  # Normalize to 0-1
+
+
+def get_attack_signature(nodes):
+    """
+    Generate attack signature based on average feature values.
+    Returns a dict with pattern metrics for the cluster.
+    """
+    if not nodes:
+        return {'v14_avg': 0, 'v17_avg': 0, 'signature_type': 'unknown'}
+    
+    v14_avg = np.mean([n.get('v14', 0) for n in nodes])
+    v17_avg = np.mean([n.get('v17', 0) for n in nodes])
+    amount_avg = np.mean([n.get('amount', 0) for n in nodes])
+    amount_std = np.std([n.get('amount', 0) for n in nodes])
+    
+    # Classify attack signature type
+    if v14_avg < -10:
+        sig_type = 'High Anomaly (Behavioral)'
+    elif v17_avg < -8:
+        sig_type = 'Identity Breach'
+    elif amount_std > 500:
+        sig_type = 'Variable Amount Attack'
+    else:
+        sig_type = 'Standard Fraud Pattern'
+    
+    return {
+        'v14_avg': round(v14_avg, 2),
+        'v17_avg': round(v17_avg, 2),
+        'amount_avg': round(amount_avg, 2),
+        'amount_std': round(amount_std, 2),
+        'signature_type': sig_type
+    }
 
 
 def build_fraud_network(time_window_seconds=1800, similarity_threshold=0.5, max_nodes=50):
@@ -86,63 +134,197 @@ def build_fraud_network(time_window_seconds=1800, similarity_threshold=0.5, max_
     if df is None:
         return {'nodes': [], 'edges': [], 'sessions': [], 'stats': {}}
     
-    # Focus on fraud transactions only for speed
+    # Get fraud transactions (high risk)
     fraud_df = df[df['Class'] == 1].head(max_nodes).copy()
+    fraud_df['risk_score'] = 0.95  # High risk base score
     
-    # Build nodes
+    # Get sample of legitimate transactions (low/medium risk)
+    # We'll take about 50% as many legit nodes as fraud nodes to keep graph focused but varied
+    legit_count = min(len(df[df['Class'] == 0]), max(20, int(max_nodes * 0.5)))
+    legit_df = df[df['Class'] == 0].sample(n=legit_count, random_state=42).copy()
+    
+    # Simulate risk scores for legit transactions (mostly low, some medium)
+    # 80% low risk (0.0-0.3), 20% medium risk (0.3-0.7)
+    legit_df['risk_score'] = np.random.choice(
+        [np.random.uniform(0.05, 0.3), np.random.uniform(0.35, 0.65)],
+        size=len(legit_df),
+        p=[0.8, 0.2]
+    )
+    
+    # Combine and sort by time
+    combined_df = pd.concat([fraud_df, legit_df]).sort_values('Time')
+    
+    # Calculate legitimate baseline statistics for anomaly scoring
+    legit_only = df[df['Class'] == 0]
+    legit_means = {col: legit_only[col].mean() for col in ['V14', 'V17', 'V12', 'V10'] if col in legit_only.columns}
+    legit_stds = {col: legit_only[col].std() for col in ['V14', 'V17', 'V12', 'V10'] if col in legit_only.columns}
+    
+    # Build nodes with anomaly scores
     nodes = []
-    for idx, row in fraud_df.iterrows():
+    for idx, row in combined_df.iterrows():
+        # Calculate anomaly score based on deviation from legitimate baseline
+        anomaly_score = calculate_anomaly_score(row, legit_means, legit_stds)
+        
         node = {
             'id': f"TXN_{idx:06d}",
             'amount': float(row['Amount']),
             'time': float(row['Time']),
             'time_label': format_time(row['Time']),
-            'is_fraud': True,
-            'risk_score': 0.85,  # Simplified - all fraud is high risk
+            'is_fraud': bool(row['Class'] == 1),
+            'risk_score': float(row.get('risk_score', 0)),
+            'anomaly_score': round(anomaly_score, 3),  # New: for node sizing
             'v14': float(row['V14']),
             'v17': float(row['V17']),
+            'v12': float(row.get('V12', 0)),
+            'v10': float(row.get('V10', 0))
         }
         nodes.append(node)
     
-    # Build edges - simplified: only temporal connections between fraud
+    # Build edges with multiple connection types
     edges = []
-    node_list = list(fraud_df.iterrows())
+    node_list = list(enumerate(zip(combined_df.index, combined_df.to_dict('records'))))
     
-    for i, (idx1, row1) in enumerate(node_list):
-        # Only check next few nodes (temporal ordering) for speed
-        for j in range(i+1, min(i+10, len(node_list))):
-            idx2, row2 = node_list[j]
+    for i, (idx_pos, (idx1, row1)) in enumerate(node_list):
+        for j in range(i+1, min(i+15, len(node_list))):
+            idx_pos2, (idx2, row2) = node_list[j]
             time_diff = abs(row1['Time'] - row2['Time'])
             
+            # Calculate feature similarity
+            feature_sim = calculate_feature_similarity(row1, row2)
+            
+            # Determine connection type and strength
+            edge_types = []
+            strength = 0
+            
+            # Time-based connection
             if time_diff < time_window_seconds:
-                strength = 0.8 if time_diff < 300 else 0.4
+                edge_types.append('temporal')
+                strength += 0.4 if time_diff < 300 else 0.2
+            
+            # Feature similarity connection (same attack signature)
+            if feature_sim > 0.7:
+                edge_types.append('attack_signature')
+                strength += feature_sim * 0.5
+            
+            # Both fraud - confirmed cluster
+            if row1['Class'] == 1 and row2['Class'] == 1:
+                edge_types.append('confirmed_fraud')
+                strength += 0.3
+            
+            # Only create edge if there's a valid connection
+            if edge_types and strength > 0.3:
                 edges.append({
                     'source': f"TXN_{idx1:06d}",
                     'target': f"TXN_{idx2:06d}",
-                    'types': ['temporal_strong' if time_diff < 300 else 'temporal', 'confirmed_fraud'],
-                    'strength': strength,
+                    'types': edge_types,
+                    'strength': min(1.0, strength),
                     'time_diff': time_diff,
-                    'similarity': 0.7
+                    'similarity': feature_sim
                 })
     
-    # Detect fraud sessions
-    sessions = detect_fraud_sessions(fraud_df)
-    
-    _network_cache = {
-        'nodes': nodes,
-        'edges': edges,
-        'sessions': sessions,
-        'stats': {
-            'total_nodes': len(nodes),
-            'total_edges': len(edges),
-            'fraud_count': len(fraud_df),
-            'sessions_detected': len(sessions)
+def get_cluster_explanation(session_id, nodes):
+    """
+    Generate SHAP explanations for a cluster/session.
+    Uses real ML model if available, otherwise falls back to mock.
+    """
+    # Filter nodes for this session
+    session_nodes = [n for n in nodes if n.get('id') in session_id or session_id == 'all']
+    if not session_nodes:
+        return []
+
+    # Try to use real ML model for SHAP explanations
+    try:
+        from model_explainer import explain_transaction_from_request
+        
+        # Get SHAP explanations for each node in cluster
+        all_explanations = []
+        for node in session_nodes[:5]:  # Limit to 5 for performance
+            try:
+                # Build feature dict from node
+                feature_dict = {
+                    'Amount': node.get('amount', 0),
+                    'Time': node.get('time', 0)
+                }
+                # Add V features
+                for i in range(1, 29):
+                    v_key = f'V{i}'
+                    if v_key.lower() in node:
+                        feature_dict[v_key] = node.get(v_key.lower(), 0)
+                    elif v_key in node:
+                        feature_dict[v_key] = node.get(v_key, 0)
+                
+                # Get SHAP explanation
+                result = explain_transaction_from_request(feature_dict)
+                all_explanations.extend(result['shap_explanation'])
+            except Exception as e:
+                print(f"Error explaining node {node.get('id')}: {e}")
+                continue
+        
+        # Aggregate by feature (take max importance)
+        if all_explanations:
+            feature_importance = {}
+            for exp in all_explanations:
+                feat = exp['feature']
+                if feat not in feature_importance:
+                    feature_importance[feat] = {
+                        'feature': exp['feature'],
+                        'value': exp['value'],
+                        'importance': 0,
+                        'contribution': exp['contribution'],
+                        'description': exp['description']
+                    }
+                feature_importance[feat]['importance'] = max(
+                    feature_importance[feat]['importance'],
+                    exp['importance']
+                )
+            
+            explanations = sorted(
+                feature_importance.values(),
+                key=lambda x: x['importance'],
+                reverse=True
+            )[:5]
+            
+            return explanations
+    except ImportError:
+        # Model not available, fall back to mock
+        pass
+    except Exception as e:
+        print(f"Error using ML model for cluster explanation: {e}")
+        # Fall back to mock
+        pass
+
+    # Fallback: Calculate average feature values for cluster
+    avg_v14 = np.mean([n.get('v14', 0) for n in session_nodes])
+    avg_v17 = np.mean([n.get('v17', 0) for n in session_nodes])
+    avg_amount = np.mean([n.get('amount', 0) for n in session_nodes])
+
+    # Simplified SHAP-like contributors (deviation from 'normal')
+    explanations = [
+        {
+            'feature': 'V14 (Behavior)',
+            'value': avg_v14,
+            'importance': abs(avg_v14 + 10) / 20.0, # Mock importance based on deviation
+            'contribution': 'negative' if avg_v14 < -5 else 'positive',
+            'description': 'Abnormal transaction pattern detected'
+        },
+        {
+            'feature': 'V17 (Identity)',
+            'value': avg_v17,
+            'importance': abs(avg_v17 + 5) / 15.0,
+            'contribution': 'negative' if avg_v17 < -5 else 'positive',
+            'description': 'Identity verification anomaly'
+        },
+        {
+            'feature': 'Time Burst',
+            'value': len(session_nodes),
+            'importance': min(0.8, len(session_nodes) * 0.1),
+            'contribution': 'positive',
+            'description': 'High velocity transaction burst'
         }
-    }
+    ]
     
-    print(f"✓ Network built: {len(nodes)} nodes, {len(edges)} edges")
-    
-    return _network_cache
+    # Sort by importance
+    return sorted(explanations, key=lambda x: x['importance'], reverse=True)
 
 
 def check_connection(row1, row2, idx1, idx2, time_window, sim_threshold):
