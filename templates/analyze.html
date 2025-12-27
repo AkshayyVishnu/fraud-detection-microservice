@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyze Transaction | The Merchant Shield</title>
+    <meta name="description" content="Analyze a transaction for fraud risk">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-brand">
+            <div class="nav-logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="url(#shield-gradient)" />
+                    <path d="M16 6L8 10V16C8 21.52 11.48 26.74 16 28C20.52 26.74 24 21.52 24 16V10L16 6Z" stroke="white"
+                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M12 16L14.5 18.5L20 13" stroke="white" stroke-width="1.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <defs>
+                        <linearGradient id="shield-gradient" x1="0" y1="0" x2="32" y2="32"
+                            gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#6366F1" />
+                            <stop offset="1" stop-color="#8B5CF6" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <span class="nav-title">Merchant Shield</span>
+            <span class="nav-badge">BETA</span>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Dashboard</a>
+            <a href="/analyze" class="nav-link active">Analyze</a>
+            <a href="/audit" class="nav-link">Audit Log</a>
+        </div>
+        <div class="nav-status">
+            <div class="status-indicator">
+                <span class="status-dot"></span>
+                <span class="status-text">Monitoring</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="analyze-container">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-content">
+                    <h1 class="header-title">Transaction Analysis</h1>
+                    <p class="header-subtitle">Enter transaction details to get instant fraud risk assessment</p>
+                </div>
+            </header>
+
+            <!-- Analysis Form -->
+            <form class="analyze-form" id="analyzeForm" onsubmit="analyzeTransaction(event)">
+                <!-- Basic Info Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"
+                            style="color: var(--color-primary)">
+                            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                            <path fill-rule="evenodd"
+                                d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        Transaction Details
+                    </h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="amount">Amount ($)</label>
+                            <input type="number" id="amount" name="amount" class="form-input" placeholder="0.00"
+                                step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="time">Time (seconds)</label>
+                            <input type="number" id="time" name="time" class="form-input" placeholder="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="customerId">Customer ID</label>
+                            <input type="text" id="customerId" name="customerId" class="form-input"
+                                placeholder="CUS_12345">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="merchantId">Merchant ID</label>
+                            <input type="text" id="merchantId" name="merchantId" class="form-input"
+                                placeholder="MER_1234">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- V Features Section -->
+                <div class="form-section">
+                    <h3 class="form-section-title">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"
+                            style="color: var(--color-primary)">
+                            <path fill-rule="evenodd"
+                                d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        PCA Features (V1-V28)
+                        <span
+                            style="font-weight: 400; font-size: 0.75rem; color: var(--color-text-tertiary); margin-left: 0.5rem;">From
+                            credit card dataset</span>
+                    </h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="v1">V1</label>
+                            <input type="number" id="v1" name="v1" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v2">V2</label>
+                            <input type="number" id="v2" name="v2" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v3">V3</label>
+                            <input type="number" id="v3" name="v3" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v4">V4</label>
+                            <input type="number" id="v4" name="v4" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v5">V5</label>
+                            <input type="number" id="v5" name="v5" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v6">V6</label>
+                            <input type="number" id="v6" name="v6" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v7">V7</label>
+                            <input type="number" id="v7" name="v7" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v8">V8</label>
+                            <input type="number" id="v8" name="v8" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v9">V9</label>
+                            <input type="number" id="v9" name="v9" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v10">V10</label>
+                            <input type="number" id="v10" name="v10" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v11">V11</label>
+                            <input type="number" id="v11" name="v11" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v12">V12</label>
+                            <input type="number" id="v12" name="v12" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v13">V13</label>
+                            <input type="number" id="v13" name="v13" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v14">V14</label>
+                            <input type="number" id="v14" name="v14" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v15">V15</label>
+                            <input type="number" id="v15" name="v15" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v16">V16</label>
+                            <input type="number" id="v16" name="v16" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v17">V17</label>
+                            <input type="number" id="v17" name="v17" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v18">V18</label>
+                            <input type="number" id="v18" name="v18" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v19">V19</label>
+                            <input type="number" id="v19" name="v19" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v20">V20</label>
+                            <input type="number" id="v20" name="v20" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v21">V21</label>
+                            <input type="number" id="v21" name="v21" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v22">V22</label>
+                            <input type="number" id="v22" name="v22" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v23">V23</label>
+                            <input type="number" id="v23" name="v23" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v24">V24</label>
+                            <input type="number" id="v24" name="v24" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v25">V25</label>
+                            <input type="number" id="v25" name="v25" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v26">V26</label>
+                            <input type="number" id="v26" name="v26" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v27">V27</label>
+                            <input type="number" id="v27" name="v27" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="v28">V28</label>
+                            <input type="number" id="v28" name="v28" class="form-input" placeholder="0.0" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Fill -->
+                <div class="form-section">
+                    <h3 class="form-section-title">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"
+                            style="color: var(--color-warning)">
+                            <path
+                                d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
+                        </svg>
+                        Quick Fill Test Data
+                    </h3>
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary" onclick="fillTestData('legitimate')">
+                            ✓ Legitimate Transaction
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="fillTestData('suspicious')">
+                            ⚠ Suspicious Transaction
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="fillTestData('fraud')">
+                            ⛔ High-Risk Fraud
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        Analyze Risk
+                    </button>
+                </div>
+            </form>
+
+            <!-- Result Panel (Hidden by default) -->
+            <div class="result-panel hidden" id="resultPanel">
+                <div class="result-card" id="resultCard">
+                    <div class="result-header" id="resultHeader">
+                        <div>
+                            <div class="result-title" id="resultTitle">Risk Assessment</div>
+                            <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 0.25rem;"
+                                id="resultTimestamp"></div>
+                        </div>
+                        <div class="result-probability" id="resultProbability">--</div>
+                    </div>
+                    <div class="result-body">
+                        <!-- Recommendation -->
+                        <div class="result-section">
+                            <div class="result-section-title">Recommendation</div>
+                            <div class="result-recommendation" id="resultRecommendation">--</div>
+                        </div>
+
+                        <!-- Temporal Context -->
+                        <div class="result-section">
+                            <div class="result-section-title">Temporal Context (Fraud Time Machine)</div>
+                            <div class="context-grid" id="contextGrid">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Risk Factors -->
+                        <div class="result-section">
+                            <div class="result-section-title">Primary Risk Factors</div>
+                            <div class="factors-list" id="factorsList">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <span>© 2024 Merchant Shield</span>
+            <span class="footer-divider">•</span>
+            <span>Fraud Detection API v1.0</span>
+        </div>
+    </footer>
+
+    <script>
+        // Test data presets
+        const testData = {
+            legitimate: {
+                amount: 49.99,
+                time: 36000, // 10 AM
+                v1: -1.359807,
+                v2: -0.072781,
+                v3: 2.536347,
+                v4: 1.378155,
+                v5: -0.338321,
+                v6: 0.462388,
+                v7: 0.239599,
+                v8: 0.098698,
+                v9: 0.363787,
+                v10: 0.090794,
+                v11: -0.551600,
+                v12: -0.617801,
+                v13: -0.991390,
+                v14: -0.311169,
+                v15: 1.468177,
+                v16: -0.470401,
+                v17: 0.207971,
+                v18: 0.025791,
+                v19: 0.403993,
+                v20: 0.251412,
+                v21: -0.018307,
+                v22: 0.277838,
+                v23: -0.110474,
+                v24: 0.066928,
+                v25: 0.128539,
+                v26: -0.189115,
+                v27: 0.133558,
+                v28: -0.021053
+            },
+            suspicious: {
+                amount: 1250.00,
+                time: 14400, // 4 AM
+                v1: -2.312227,
+                v2: 1.951992,
+                v3: -1.609851,
+                v4: 3.997906,
+                v5: -0.522188,
+                v6: -1.426545,
+                v7: -2.537387,
+                v8: 1.391657,
+                v9: -2.770089,
+                v10: -2.772272,
+                v11: 3.202033,
+                v12: -2.899907,
+                v13: -0.595222,
+                v14: -4.289254,
+                v15: 0.389724,
+                v16: -1.140747,
+                v17: -2.830056,
+                v18: -0.016850,
+                v19: 0.416956,
+                v20: 0.126911,
+                v21: 0.517232,
+                v22: -0.035049,
+                v23: -0.465211,
+                v24: 0.320198,
+                v25: 0.044519,
+                v26: 0.177840,
+                v27: 0.261145,
+                v28: -0.143276
+            },
+            fraud: {
+                amount: 9999.00,
+                time: 13620, // 3:47 AM
+                v1: -18.5,
+                v2: 8.234567,
+                v3: -15.123456,
+                v4: 12.345678,
+                v5: -8.765432,
+                v6: -5.432109,
+                v7: -12.345678,
+                v8: 15.234567,
+                v9: -6.543210,
+                v10: -18.234567,
+                v11: 10.123456,
+                v12: -15.678901,
+                v13: -2.345678,
+                v14: -18.5,
+                v15: 0.876543,
+                v16: -8.765432,
+                v17: -12.123456,
+                v18: -3.456789,
+                v19: 2.345678,
+                v20: 0.987654,
+                v21: 1.234567,
+                v22: -0.654321,
+                v23: -2.876543,
+                v24: 0.543210,
+                v25: 0.321098,
+                v26: 0.654321,
+                v27: 1.234567,
+                v28: -0.876543
+            }
+        };
+
+        function fillTestData(type) {
+            const data = testData[type];
+            if (!data) return;
+
+            document.getElementById('amount').value = data.amount;
+            document.getElementById('time').value = data.time;
+
+            for (let i = 1; i <= 28; i++) {
+                const input = document.getElementById(`v${i}`);
+                if (input && data[`v${i}`] !== undefined) {
+                    input.value = data[`v${i}`];
+                }
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('analyzeForm').reset();
+            document.getElementById('resultPanel').classList.add('hidden');
+        }
+
+        async function analyzeTransaction(event) {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px;"></span> Analyzing...';
+
+            // Build request data
+            const formData = {
+                amount: parseFloat(document.getElementById('amount').value) || 0,
+                time: parseInt(document.getElementById('time').value) || 0
+            };
+
+            // Add V features
+            for (let i = 1; i <= 28; i++) {
+                const value = document.getElementById(`v${i}`).value;
+                formData[`v${i}`] = parseFloat(value) || 0;
+            }
+
+            try {
+                const response = await fetch('/api/analyze-risk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+                displayResult(result);
+
+            } catch (error) {
+                console.error('Analysis failed:', error);
+                alert('Analysis failed. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                    Analyze Risk
+                `;
+            }
+        }
+
+        function displayResult(result) {
+            const panel = document.getElementById('resultPanel');
+            const header = document.getElementById('resultHeader');
+            const probability = document.getElementById('resultProbability');
+            const title = document.getElementById('resultTitle');
+            const timestamp = document.getElementById('resultTimestamp');
+            const recommendation = document.getElementById('resultRecommendation');
+            const contextGrid = document.getElementById('contextGrid');
+            const factorsList = document.getElementById('factorsList');
+
+            // Set risk level class
+            const riskClass = result.risk_level.toLowerCase();
+            header.className = `result-header ${riskClass}-risk`;
+            probability.className = `result-probability ${riskClass}`;
+
+            // Set values
+            probability.textContent = `${(result.fraud_probability * 100).toFixed(1)}%`;
+            title.textContent = `${result.risk_level} Risk Assessment`;
+            timestamp.textContent = `Analyzed at ${new Date().toLocaleTimeString()}`;
+            recommendation.textContent = result.recommendation;
+
+            // Temporal context
+            const ctx = result.temporal_context;
+            contextGrid.innerHTML = `
+                <div class="context-item">
+                    <span class="context-label">Recent Fraud Count</span>
+                    <span class="context-value">${ctx.recent_fraud_count}</span>
+                </div>
+                <div class="context-item">
+                    <span class="context-label">Time Since Last Fraud</span>
+                    <span class="context-value">${Math.floor(ctx.time_since_last_fraud / 60)}m ${ctx.time_since_last_fraud % 60}s</span>
+                </div>
+                <div class="context-item">
+                    <span class="context-label">Fraud Contagion Score</span>
+                    <span class="context-value">${ctx.fraud_contagion_score.toFixed(2)}</span>
+                </div>
+                <div class="context-item">
+                    <span class="context-label">Transaction Intensity</span>
+                    <span class="context-value">${ctx.transaction_intensity_ratio.toFixed(1)}x normal</span>
+                </div>
+                <div class="context-item">
+                    <span class="context-label">Time Bucket Risk</span>
+                    <span class="context-value" style="color: ${ctx.current_time_bucket_risk === 'CRITICAL' ? 'var(--color-danger)' : ctx.current_time_bucket_risk === 'HIGH' ? 'var(--color-warning)' : 'var(--color-success)'}">${ctx.current_time_bucket_risk}</span>
+                </div>
+            `;
+
+            // Risk factors
+            factorsList.innerHTML = result.explanation.primary_factors.map(factor => `
+                <div class="factor-item">
+                    <svg class="factor-icon" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <span>${factor}</span>
+                </div>
+            `).join('');
+
+            // Show panel
+            panel.classList.remove('hidden');
+
+            // Scroll to result
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+</body>
+
+</html>
