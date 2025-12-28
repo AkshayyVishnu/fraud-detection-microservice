@@ -4,13 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audit Log | The Merchant Shield</title>
+    <title>Audit Log</title>
     <meta name="description" content="Review flagged and blocked transactions">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 
@@ -18,24 +13,7 @@
     <!-- Navigation -->
     <nav class="nav">
         <div class="nav-brand">
-            <div class="nav-logo">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                    <rect width="32" height="32" rx="8" fill="url(#shield-gradient)" />
-                    <path d="M16 6L8 10V16C8 21.52 11.48 26.74 16 28C20.52 26.74 24 21.52 24 16V10L16 6Z" stroke="white"
-                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M12 16L14.5 18.5L20 13" stroke="white" stroke-width="1.5" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                    <defs>
-                        <linearGradient id="shield-gradient" x1="0" y1="0" x2="32" y2="32"
-                            gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#6366F1" />
-                            <stop offset="1" stop-color="#8B5CF6" />
-                        </linearGradient>
-                    </defs>
-                </svg>
-            </div>
-            <span class="nav-title">Merchant Shield</span>
-            <span class="nav-badge">BETA</span>
+            <span class="nav-title">Fraud Detection</span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link">Dashboard</a>
@@ -43,9 +21,19 @@
             <a href="/audit" class="nav-link active">Audit Log</a>
         </div>
         <div class="nav-status">
+            <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">
+                <svg class="sun-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                        clip-rule="evenodd" />
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 20 20" fill="currentColor" style="display:none;">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+            </button>
             <div class="status-indicator" id="threatIndicator">
                 <span class="status-dot"></span>
-                <span class="status-text">Monitoring</span>
+                <span class="status-text">Active</span>
             </div>
         </div>
     </nav>
@@ -71,86 +59,65 @@
         </div>
 
         <!-- Audit Table -->
-        <div class="audit-table">
-            <div class="audit-table-header">
-                <div>Transaction ID</div>
-                <div>Amount</div>
-                <div>Fraud Probability</div>
-                <div>Risk Level</div>
-                <div>Status</div>
-                <div>Timestamp</div>
-            </div>
-            <div class="audit-table-body" id="auditTableBody">
-                <div class="empty-state">
-                    <div class="spinner"></div>
-                    <div style="margin-top: 1rem; color: var(--color-text-tertiary);">Loading transactions...</div>
-                </div>
-            </div>
+        <div class="card">
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Amount</th>
+                        <th>Fraud Probability</th>
+                        <th>Risk Level</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="auditTableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2rem;">
+                            <div class="spinner" style="margin: 0 auto;"></div>
+                            <div style="margin-top: 1rem; color: var(--color-text-tertiary);">Loading transactions...
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <!-- Stats Summary -->
-        <div class="stats-grid" style="margin-top: 2rem;">
+        <section class="stats-grid" style="margin-top: 2rem;">
             <div class="stat-card">
                 <div class="stat-header">
                     <span class="stat-label">Total Reviewed</span>
-                    <div class="stat-icon stat-icon-blue">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clip-rule="evenodd" />
-                        </svg>
-                    </div>
                 </div>
                 <div class="stat-value" id="auditStatTotal">--</div>
             </div>
             <div class="stat-card">
                 <div class="stat-header">
                     <span class="stat-label">Fraud Caught</span>
-                    <div class="stat-icon stat-icon-red">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z"
-                                clip-rule="evenodd" />
-                        </svg>
-                    </div>
                 </div>
                 <div class="stat-value stat-value-red" id="auditStatBlocked">--</div>
             </div>
             <div class="stat-card">
                 <div class="stat-header">
                     <span class="stat-label">Needs Review</span>
-                    <div class="stat-icon stat-icon-yellow">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clip-rule="evenodd" />
-                        </svg>
-                    </div>
                 </div>
                 <div class="stat-value stat-value-yellow" id="auditStatFlagged">--</div>
             </div>
             <div class="stat-card">
                 <div class="stat-header">
                     <span class="stat-label">Detection Rate</span>
-                    <div class="stat-icon stat-icon-purple">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm9 4a1 1 0 10-2 0v6a1 1 0 102 0V7zm-3 2a1 1 0 10-2 0v4a1 1 0 102 0V9zm-3 3a1 1 0 10-2 0v1a1 1 0 102 0v-1z"
-                                clip-rule="evenodd" />
-                        </svg>
-                    </div>
                 </div>
                 <div class="stat-value stat-value-purple" id="auditStatRate">--</div>
             </div>
-        </div>
+        </section>
     </main>
 
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
-            <span>© 2024 Merchant Shield</span>
+            <span>© 2024 Fraud Detection System</span>
             <span class="footer-divider">•</span>
-            <span>Fraud Detection API v1.0</span>
+            <span>API v1.0</span>
         </div>
     </footer>
 
@@ -158,7 +125,6 @@
         let allTransactions = [];
         let currentFilter = 'all';
 
-        // Fetch transactions on load
         document.addEventListener('DOMContentLoaded', () => {
             fetchTransactions();
         });
@@ -173,25 +139,19 @@
             } catch (error) {
                 console.error('Failed to fetch transactions:', error);
                 document.getElementById('auditTableBody').innerHTML = `
-                    <div class="empty-state">
-                        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                        <div class="empty-state-title">Failed to load transactions</div>
-                        <div class="empty-state-text">Please try refreshing the page</div>
-                    </div>
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2rem; color: var(--color-text-tertiary);">
+                            Failed to load transactions. Please try refreshing the page.
+                        </td>
+                    </tr>
                 `;
             }
         }
 
         function filterTransactions(filter, btn) {
             currentFilter = filter;
-
-            // Update button states
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-
-            // Filter and render
             let filtered = allTransactions;
             if (filter !== 'all') {
                 filtered = allTransactions.filter(t => t.status === filter);
@@ -204,39 +164,26 @@
 
             if (!transactions || transactions.length === 0) {
                 container.innerHTML = `
-                    <div class="empty-state">
-                        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                        <div class="empty-state-title">No transactions found</div>
-                        <div class="empty-state-text">Transactions matching your filter will appear here</div>
-                    </div>
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 2rem; color: var(--color-text-tertiary);">
+                            No transactions found
+                        </td>
+                    </tr>
                 `;
                 return;
             }
 
             container.innerHTML = transactions.map(tx => {
                 const probPercent = (tx.fraud_probability * 100).toFixed(1);
-                const riskClass = tx.risk_level === 'HIGH' ? 'high' : tx.risk_level === 'MEDIUM' ? 'medium' : 'low';
-
                 return `
-                    <div class="audit-row" onclick="viewTransaction('${tx.id}')">
-                        <div class="audit-cell id">${tx.id}</div>
-                        <div class="audit-cell amount">$${tx.amount.toFixed(2)}</div>
-                        <div class="audit-cell probability">
-                            <div class="probability-bar">
-                                <div class="probability-fill ${riskClass}" style="width: ${probPercent}%"></div>
-                            </div>
-                            ${probPercent}%
-                        </div>
-                        <div class="audit-cell">
-                            <span class="status-badge ${tx.status}">${tx.risk_level}</span>
-                        </div>
-                        <div class="audit-cell">
-                            <span class="status-badge ${tx.status}">${tx.status}</span>
-                        </div>
-                        <div class="audit-cell timestamp">${formatTimestamp(tx.timestamp)}</div>
-                    </div>
+                    <tr onclick="viewTransaction('${tx.id}')" style="cursor: pointer;">
+                        <td style="font-family: var(--font-mono);">${tx.id}</td>
+                        <td style="font-family: var(--font-mono);">$${tx.amount.toFixed(2)}</td>
+                        <td style="font-family: var(--font-mono);">${probPercent}%</td>
+                        <td><span class="status-badge ${tx.status}">${tx.risk_level}</span></td>
+                        <td><span class="status-badge ${tx.status}">${tx.status}</span></td>
+                        <td>${formatTimestamp(tx.timestamp)}</td>
+                    </tr>
                 `;
             }).join('');
         }
@@ -264,10 +211,36 @@
         }
 
         function viewTransaction(id) {
-            // Could open a modal with transaction details
-            console.log('View transaction:', id);
             window.location.href = `/analyze?id=${id}`;
         }
+
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcons(newTheme);
+        }
+
+        function updateThemeIcons(theme) {
+            const sunIcon = document.querySelector('.sun-icon');
+            const moonIcon = document.querySelector('.moon-icon');
+            if (theme === 'dark') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        }
+
+        (function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcons(savedTheme);
+        })();
     </script>
 </body>
 

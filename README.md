@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🛡️ Merchant Shield - Fraud Detection Microservice
 
 A comprehensive machine learning-powered fraud detection system for credit card transactions, featuring real-time risk assessment, cost-optimized threshold selection, and interactive visualizations.
@@ -177,11 +178,32 @@ The project uses the [Kaggle Credit Card Fraud Detection Dataset](https://www.ka
 
 ## 🚀 Getting Started
 
-### Option 1: Run with Pre-trained Model
+### Using the Enhanced UI Branch (Recommended)
+
+This project has a modernized UI on the `redesign/calm-financial-ui` branch:
+
+```bash
+# Clone and checkout the enhanced UI branch
+git clone https://github.com/AkshayyVishnu/fraud-detection-microservice.git
+cd fraud-detection-microservice
+git checkout redesign/calm-financial-ui
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the server
+python app.py
+```
+
+Navigate to **http://127.0.0.1:5000/** in your browser.
+
+### Option 1: Run with Pre-trained Model (Main Branch)
 
 If you have a pre-trained model in the `models/` directory:
 
 ```bash
+git checkout main
+pip install -r requirements.txt
 python app.py
 ```
 
@@ -274,11 +296,52 @@ http://127.0.0.1:5000
 ### Endpoints
 
 #### 1. POST `/api/analyze-risk`
+Navigate to **http://127.0.0.1:5000/** in your browser.
 
-Analyze a transaction for fraud risk.
+### Using Main Branch
 
-**Request Body:**
+```bash
+git checkout main
+pip install flask
+python app.py
+```
+
+---
+
+## ✨ Features
+
+### Dashboard
+- **Real-time Metrics**: Live transaction monitoring with animated counters
+- **Fraud Network Graph**: D3.js force-directed visualization of transaction relationships
+- **Temporal Heatmap**: Time-based fraud pattern analysis
+- **Risk Distribution**: Interactive donut chart
+
+### Analyze Page
+- **Transaction Analysis**: Submit transactions for instant fraud scoring
+- **Train New Model** (UI Branch): Upload datasets and train models with real-time loss visualization
+- **Feature Importance**: Human-readable explanations (not V1-V28 labels)
+- **Live Metrics**: Training progress with performance charts
+
+### Audit Log
+- **Transaction History**: Review all flagged and blocked transactions
+- **Filtering**: Filter by status (approved/flagged/blocked)
+- **Statistics**: Detection rate and fraud prevention metrics
+
+---
+
+## 📡 API Documentation
+
+### Base URL
+
+```
+http://127.0.0.1:5000
+```
+
+### Endpoints
+
+#### 1. POST `/api/analyze-risk`
 ```json
+POST /api/analyze-risk
 {
     "amount": 9999.00,
     "time": 13620,
@@ -461,6 +524,53 @@ Threshold    Precision    Recall       F1-Score     Accuracy     TN      FP     
 ```
 
 ---
+=======
+---
+
+## 📁 Project Structure
+
+```
+merchant-shield/
+├── app.py                  # Flask + SocketIO application
+├── train_model.py          # Standalone training script
+├── model_training.py       # Optuna-optimized training
+├── data_preprocessing.py   # Data loading utilities
+├── static/
+│   ├── styles.css          # Premium fintech design system
+│   ├── app.js              # Dashboard JavaScript
+│   ├── network.js          # D3.js fraud network graph
+│   ├── temporal.js         # Temporal heatmap
+│   └── training.js         # Training UI (live charts)
+├── templates/
+│   ├── dashboard.html      # Main dashboard
+│   ├── analyze.html        # Analysis + training
+│   └── audit.html          # Audit log
+├── models/                 # Saved ML models
+└── data/                   # Dataset directory
+```
+
+---
+
+## 🧠 ML Model
+
+Train a model from the UI or command line:
+
+```bash
+# Command line training
+python train_model.py
+
+# Model files saved to:
+# - models/fraud_detector.pkl
+# - models/scaler.pkl
+# - models/feature_info.pkl
+```
+
+Target: **>95% AUC-ROC** with XGBoost + SMOTE for class imbalance.
+
+---
+
+## 📝 License
+>>>>>>> c3d2a781b8b6458613d89217dca4da41c353e94b
 
 ## 📸 Screenshots & Demos
 

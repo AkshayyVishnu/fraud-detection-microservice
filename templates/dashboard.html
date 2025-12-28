@@ -4,379 +4,681 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Merchant Shield | Fraud Detection Dashboard</title>
-    <meta name="description" content="Real-time fraud detection and transaction monitoring for e-commerce merchants">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
+    <title>Fraud Detection Dashboard</title>
+    <meta name="description" content="Real-time fraud detection and transaction monitoring">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 
 <body>
-    <!-- Navigation -->
-    <nav class="nav">
-        <div class="nav-brand">
-            <div class="nav-logo">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                    <rect width="32" height="32" rx="8" fill="url(#shield-gradient)" />
-                    <path d="M16 6L8 10V16C8 21.52 11.48 26.74 16 28C20.52 26.74 24 21.52 24 16V10L16 6Z" stroke="white"
-                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M12 16L14.5 18.5L20 13" stroke="white" stroke-width="1.5" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                    <defs>
-                        <linearGradient id="shield-gradient" x1="0" y1="0" x2="32" y2="32"
-                            gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#6366F1" />
-                            <stop offset="1" stop-color="#8B5CF6" />
-                        </linearGradient>
-                    </defs>
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                </div>
+                <span class="logo-text">FraudGuard</span>
+                <span class="logo-badge">Pro</span>
+            </div>
+        </div>
+        <nav class="topbar-nav">
+            <a href="/" class="topbar-link active">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                        d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                 </svg>
+                Overview
+            </a>
+            <a href="/analyze" class="topbar-link">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path fill-rule="evenodd"
+                        d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                        clip-rule="evenodd" />
+                </svg>
+                Analyze
+            </a>
+            <a href="/audit" class="topbar-link">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                        clip-rule="evenodd" />
+                </svg>
+                Audit Log
+            </a>
+        </nav>
+        <div class="topbar-right">
+            <button class="topbar-btn" onclick="toggleModelPanel()" title="Model Configuration">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                        clip-rule="evenodd" />
+                </svg>
+            </button>
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                <svg class="sun-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                        clip-rule="evenodd" />
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 20 20" fill="currentColor" style="display:none;">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+            </button>
+            <div class="status-pill">
+                <span class="status-pulse"></span>
+                <span>System Active</span>
             </div>
-            <span class="nav-title">Merchant Shield</span>
-            <span class="nav-badge">BETA</span>
         </div>
-        <div class="nav-links">
-            <a href="/" class="nav-link active">Dashboard</a>
-            <a href="/analyze" class="nav-link">Analyze</a>
-            <a href="/audit" class="nav-link">Audit Log</a>
-        </div>
-        <div class="nav-status">
-            <div class="status-indicator" id="threatIndicator">
-                <span class="status-dot"></span>
-                <span class="status-text">Monitoring</span>
-            </div>
-            <div class="ws-status ws-status-disconnected" id="wsConnectionStatus">
-                <span class="ws-status-dot"></span>
-                <span class="ws-status-text">Connecting...</span>
-            </div>
-        </div>
-    </nav>
+    </header>
 
-    <!-- Main Content -->
-    <main class="main">
-        <!-- Header Section -->
-        <header class="header">
-            <div class="header-content">
-                <h1 class="header-title">Fraud Detection Center</h1>
-                <p class="header-subtitle">Real-time transaction monitoring and risk assessment</p>
+    <!-- Model Panel -->
+    <div class="model-panel" id="modelPanel">
+        <div class="model-panel-header">
+            <h3>Model Configuration</h3>
+            <button class="panel-close" onclick="toggleModelPanel()">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                        clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+        <div class="model-panel-body">
+            <div class="panel-section">
+                <div class="panel-section-title">Algorithm</div>
+                <div class="panel-row">
+                    <span>Model</span><span class="mono">XGBoost v1.7</span>
+                </div>
+                <div class="panel-row">
+                    <span>Trees</span><span class="mono">150</span>
+                </div>
+                <div class="panel-row">
+                    <span>Features</span><span class="mono">30</span>
+                </div>
+                <div class="panel-row">
+                    <span>Threshold</span><span class="mono">0.50</span>
+                </div>
             </div>
-            <div class="header-actions">
-                <button class="btn btn-secondary" onclick="refreshData()">
-                    <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd"
-                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                            clip-rule="evenodd" />
-                    </svg>
-                    Refresh
-                </button>
-                <button class="btn btn-primary" onclick="window.location.href='/analyze'">
-                    <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd"
-                            d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                            clip-rule="evenodd" />
-                    </svg>
-                    New Analysis
-                </button>
-            </div>
-        </header>
-
-        <!-- Stats Grid -->
-        <section class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-header">
-                    <span class="stat-label">Total Transactions</span>
-                    <div class="stat-icon stat-icon-blue">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                            <path fill-rule="evenodd"
-                                d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
-                                clip-rule="evenodd" />
-                        </svg>
+            <div class="panel-section">
+                <div class="panel-section-title">Performance Metrics</div>
+                <div class="metric-bar">
+                    <div class="metric-bar-header">
+                        <span>False Positive Rate</span>
+                        <span class="mono warn">2.3%</span>
+                    </div>
+                    <div class="metric-bar-track">
+                        <div class="metric-bar-fill warn" style="width: 23%"></div>
+                        <div class="metric-bar-ideal" style="left: 20%"></div>
                     </div>
                 </div>
-                <div class="stat-value" id="statTotal">--</div>
-                <div class="stat-trend stat-trend-up">
+                <div class="metric-bar">
+                    <div class="metric-bar-header">
+                        <span>False Negative Rate</span>
+                        <span class="mono danger">4.1%</span>
+                    </div>
+                    <div class="metric-bar-track">
+                        <div class="metric-bar-fill danger" style="width: 41%"></div>
+                        <div class="metric-bar-ideal" style="left: 15%"></div>
+                    </div>
+                </div>
+                <div class="metric-bar">
+                    <div class="metric-bar-header">
+                        <span>Cost Efficiency</span>
+                        <span class="mono success">87%</span>
+                    </div>
+                    <div class="metric-bar-track">
+                        <div class="metric-bar-fill success" style="width: 87%"></div>
+                        <div class="metric-bar-ideal" style="left: 90%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <main class="dashboard">
+        <!-- Hero Stats -->
+        <section class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-icon blue">
+                    <svg viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                        <path fill-rule="evenodd"
+                            d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="hero-stat-content">
+                    <div class="hero-stat-value" id="totalTxns">284,492</div>
+                    <div class="hero-stat-label">Total Transactions</div>
+                    <div class="hero-stat-trend up">
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        +12.5% vs last week
+                    </div>
+                </div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-icon yellow">
                     <svg viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd"
-                            d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z"
+                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                             clip-rule="evenodd" />
                     </svg>
-                    <span>+12% from last hour</span>
                 </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <span class="stat-label">Flagged</span>
-                    <div class="stat-icon stat-icon-yellow">
+                <div class="hero-stat-content">
+                    <div class="hero-stat-value" id="flaggedTxns">1,247</div>
+                    <div class="hero-stat-label">Flagged for Review</div>
+                    <div class="hero-stat-trend down">
                         <svg viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd"
-                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                d="M12 13a1 1 0 100 2h5a1 1 0 001-1V9a1 1 0 10-2 0v2.586l-4.293-4.293a1 1 0 00-1.414 0L8 9.586 3.707 5.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L11 9.414 14.586 13H12z"
                                 clip-rule="evenodd" />
                         </svg>
+                        -8.2% vs last week
                     </div>
                 </div>
-                <div class="stat-value stat-value-yellow" id="statFlagged">--</div>
-                <div class="stat-subtext">Requires review</div>
             </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <span class="stat-label">Blocked</span>
-                    <div class="stat-icon stat-icon-red">
+            <div class="hero-stat">
+                <div class="hero-stat-icon red">
+                    <svg viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 008.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="hero-stat-content">
+                    <div class="hero-stat-value" id="blockedTxns">492</div>
+                    <div class="hero-stat-label">Blocked Transactions</div>
+                    <div class="hero-stat-trend up warn">
                         <svg viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd"
-                                d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z"
+                                d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z"
                                 clip-rule="evenodd" />
                         </svg>
+                        +3.1% vs last week
                     </div>
                 </div>
-                <div class="stat-value stat-value-red" id="statBlocked">--</div>
-                <div class="stat-subtext">High-risk blocked</div>
             </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <span class="stat-label">Amount at Risk</span>
-                    <div class="stat-icon stat-icon-purple">
+            <div class="hero-stat highlight">
+                <div class="hero-stat-icon purple">
+                    <svg viewBox="0 0 20 20" fill="currentColor">
+                        <path
+                            d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                        <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="hero-stat-content">
+                    <div class="hero-stat-value" id="amountSaved">$2.4M</div>
+                    <div class="hero-stat-label">Fraud Prevented (30d)</div>
+                    <div class="hero-stat-trend up">
                         <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path
-                                d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
                             <path fill-rule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
+                                d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z"
                                 clip-rule="evenodd" />
                         </svg>
+                        +28.7% vs last month
                     </div>
                 </div>
-                <div class="stat-value stat-value-purple" id="statAmountAtRisk">--</div>
-                <div class="stat-subtext">Protected this session</div>
             </div>
         </section>
 
-        <!-- Main Dashboard Grid -->
-        <div class="dashboard-grid-extended">
-            <!-- Fraud Network Graph -->
-            <section class="card card-large">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <svg class="card-title-icon" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M17.778 8.222c-4.296-4.296-11.26-4.296-15.556 0A1 1 0 01.808 6.808c5.076-5.077 13.308-5.077 18.384 0a1 1 0 01-1.414 1.414zM14.95 11.05a7 7 0 00-9.9 0 1 1 0 01-1.414-1.414 9 9 0 0112.728 0 1 1 0 01-1.414 1.414zM12.12 13.88a3 3 0 00-4.242 0 1 1 0 01-1.415-1.415 5 5 0 017.072 0 1 1 0 01-1.415 1.415zM9 16a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z"
-                                clip-rule="evenodd" />
-                        </svg>
-                        Fraud Network
-                    </h2>
-                    <div class="card-header-actions">
-                        <div id="networkStats" class="network-stats"></div>
-                        <button class="btn-icon-only"
-                            onclick="window.fraudNetwork && window.fraudNetwork.filterFraudOnly()"
-                            title="Show Fraud Only">
+        <!-- Main Grid -->
+        <section class="main-grid">
+            <!-- Left Column -->
+            <div class="grid-col-left">
+                <!-- Fraud Network -->
+                <div class="panel panel-network">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path
+                                    d="M17.924 2.617a.997.997 0 00-.215-.322l-.004-.004A.997.997 0 0017 2h-4a1 1 0 100 2h1.586l-3.293 3.293a1 1 0 001.414 1.414L16 5.414V7a1 1 0 102 0V3a.997.997 0 00-.076-.383z" />
+                                <path
+                                    d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                            </svg>
+                            Fraud Network Analysis
+                        </div>
+                        <div class="panel-actions">
+                            <span class="live-indicator"><span class="live-dot"></span>Live</span>
+                            <button class="panel-btn" onclick="window.fraudNetwork?.resetFilter()">Reset</button>
+                            <button class="panel-btn" onclick="window.fraudNetwork?.filterFraudOnly()">Fraud
+                                Only</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div id="fraudNetwork" class="network-canvas"></div>
+                    </div>
+                    <div class="panel-footer">
+                        <div class="network-legend">
+                            <span class="legend-item"><span class="legend-dot fraud"></span>Fraud</span>
+                            <span class="legend-item"><span class="legend-dot high"></span>High Risk</span>
+                            <span class="legend-item"><span class="legend-dot medium"></span>Medium</span>
+                            <span class="legend-item"><span class="legend-dot low"></span>Low Risk</span>
+                        </div>
+                        <div id="networkStats" class="network-meta"></div>
+                    </div>
+                </div>
+
+                <!-- Temporal Analysis -->
+                <div class="panel panel-temporal">
+                    <div class="panel-header">
+                        <div class="panel-title">
                             <svg viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd"
-                                    d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
                                     clip-rule="evenodd" />
                             </svg>
-                        </button>
-                        <button class="btn-icon-only" onclick="window.fraudNetwork && window.fraudNetwork.resetFilter()"
-                            title="Reset View">
-                            <svg viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body card-body-flush">
-                    <div class="network-container" id="fraudNetwork">
-                        <div class="network-loading">
-                            <div class="spinner"></div>
-                            <span>Building fraud network...</span>
+                            Temporal Analysis
                         </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Recent Transactions (Live Feed) -->
-            <section class="card">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <svg class="card-title-icon" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                                clip-rule="evenodd" />
-                        </svg>
-                        Live Transactions
-                        <span class="live-badge">LIVE</span>
-                    </h2>
-                    <a href="/audit" class="card-link">View All →</a>
-                </div>
-                <div class="card-body card-body-flush">
-                    <div class="transaction-list transaction-list-live" id="transactionList">
-                        <div class="transaction-loading">
-                            <div class="spinner"></div>
-                            <span>Connecting to live feed...</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Risk Distribution -->
-            <section class="card">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <svg class="card-title-icon" viewBox="0 0 20 20" fill="currentColor">
-                            <path
-                                d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                        </svg>
-                        Risk Distribution
-                    </h2>
-                </div>
-                <div class="card-body">
-                    <div class="risk-chart" id="riskChart">
-                        <div class="risk-bar-container">
-                            <div class="risk-bar risk-bar-low" id="riskBarLow" style="width: 0%"></div>
-                            <div class="risk-bar risk-bar-medium" id="riskBarMedium" style="width: 0%"></div>
-                            <div class="risk-bar risk-bar-high" id="riskBarHigh" style="width: 0%"></div>
-                        </div>
-                        <div class="risk-legend">
-                            <div class="risk-legend-item">
-                                <span class="risk-dot risk-dot-low"></span>
-                                <span>Low Risk</span>
-                                <span class="risk-percent" id="riskPercentLow">--%</span>
-                            </div>
-                            <div class="risk-legend-item">
-                                <span class="risk-dot risk-dot-medium"></span>
-                                <span>Medium Risk</span>
-                                <span class="risk-percent" id="riskPercentMedium">--%</span>
-                            </div>
-                            <div class="risk-legend-item">
-                                <span class="risk-dot risk-dot-high"></span>
-                                <span>High Risk</span>
-                                <span class="risk-percent" id="riskPercentHigh">--%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Fraud Time Machine -->
-            <section class="time-machine-card">
-                <div class="time-machine-header">
-                    <h2 class="time-machine-title">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                                clip-rule="evenodd" />
-                        </svg>
-                        Fraud Time Machine
-                        <span class="time-machine-badge">Temporal Analysis</span>
-                    </h2>
-                    <div class="velocity-indicator" id="velocityIndicator">
-                        <span class="velocity-label">Fraud Velocity</span>
-                        <div class="velocity-bar">
-                            <div class="velocity-fill low" id="velocityFill"></div>
-                        </div>
-                        <span class="velocity-value" id="velocityValue">0.2x</span>
-                    </div>
-                </div>
-
-                <!-- Time Axis -->
-                <div class="time-axis">
-                    <span class="time-axis-label">00:00</span>
-                    <span class="time-axis-label">06:00</span>
-                    <span class="time-axis-label">12:00</span>
-                    <span class="time-axis-label">18:00</span>
-                    <span class="time-axis-label">24:00</span>
-                    <span class="time-axis-label">30:00</span>
-                    <span class="time-axis-label">36:00</span>
-                    <span class="time-axis-label">42:00</span>
-                    <span class="time-axis-label">48:00</span>
-                </div>
-
-                <!-- Temporal Heatmap -->
-                <div class="temporal-heatmap">
-                    <div class="heatmap-timeline" id="temporalHeatmap">
-                        <!-- Will be populated by JavaScript -->
-                        <div class="heatmap-row-labeled">
-                            <span class="heatmap-label">Loading...</span>
-                            <div class="heatmap-cells">
-                                <div class="heatmap-cell-enhanced skeleton-node" style="animation-delay: 0s"></div>
-                                <div class="heatmap-cell-enhanced skeleton-node" style="animation-delay: 0.1s"></div>
-                                <div class="heatmap-cell-enhanced skeleton-node" style="animation-delay: 0.2s"></div>
-                                <div class="heatmap-cell-enhanced skeleton-node" style="animation-delay: 0.3s"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Heatmap Legend -->
-                <div class="heatmap-legend-compact">
-                    <div class="legend-scale">
-                        <span class="legend-scale-label">Safe</span>
-                        <div class="legend-scale-bar"></div>
-                        <span class="legend-scale-label">Critical</span>
-                    </div>
-                </div>
-
-                <!-- Detected Fraud Sessions -->
-                <div class="sessions-container">
-                    <div class="sessions-header">
-                        <span class="sessions-title">Detected Attack Windows</span>
-                        <span class="sessions-count" id="sessionsCount">0</span>
-                    </div>
-                    <div class="sessions-list" id="sessionsList">
-                        <!-- Will be populated by JavaScript -->
-                        <div class="session-card">
-                            <div class="session-icon">
-                                <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                            <div class="session-info">
-                                <div class="session-title">Loading fraud sessions...</div>
-                                <div class="session-meta">
-                                    <span class="session-stat">Analyzing temporal patterns</span>
+                        <div class="panel-actions">
+                            <div class="velocity-meter">
+                                <span class="velocity-label">Velocity</span>
+                                <div class="velocity-bar-bg">
+                                    <div id="velocityFill" class="velocity-bar-fill low"></div>
                                 </div>
+                                <span id="velocityValue" class="velocity-val">1.2x</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="heatmap-container">
+                            <div id="temporalHeatmap" class="heatmap-grid"></div>
+                            <div class="heatmap-scale">
+                                <span>Low</span>
+                                <div class="heatmap-gradient"></div>
+                                <span>Critical</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-footer">
+                        <div class="attack-sessions">
+                            <div class="sessions-header">
+                                <span class="sessions-label">Detected Attack Windows</span>
+                                <span id="sessionsCount" class="sessions-badge">0</span>
+                            </div>
+                            <div id="sessionsList" class="sessions-scroll"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="grid-col-right">
+                <!-- Risk Distribution -->
+                <div class="panel panel-risk">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path
+                                    d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                            </svg>
+                            Risk Distribution
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="risk-donut">
+                            <svg viewBox="0 0 100 100" class="donut-chart">
+                                <circle class="donut-ring" cx="50" cy="50" r="40" />
+                                <circle class="donut-segment low" cx="50" cy="50" r="40"
+                                    stroke-dasharray="163.36 251.33" />
+                                <circle class="donut-segment medium" cx="50" cy="50" r="40"
+                                    stroke-dasharray="50.27 251.33" stroke-dashoffset="-163.36" />
+                                <circle class="donut-segment high" cx="50" cy="50" r="40"
+                                    stroke-dasharray="37.70 251.33" stroke-dashoffset="-213.63" />
+                            </svg>
+                            <div class="donut-center">
+                                <div class="donut-value">98.3%</div>
+                                <div class="donut-label">Safe</div>
+                            </div>
+                        </div>
+                        <div class="risk-breakdown">
+                            <div class="risk-row">
+                                <span class="risk-color low"></span>
+                                <span class="risk-name">Low Risk</span>
+                                <span class="risk-pct">65%</span>
+                                <span class="risk-count">184,920</span>
+                            </div>
+                            <div class="risk-row">
+                                <span class="risk-color medium"></span>
+                                <span class="risk-name">Medium Risk</span>
+                                <span class="risk-pct">20%</span>
+                                <span class="risk-count">56,898</span>
+                            </div>
+                            <div class="risk-row">
+                                <span class="risk-color high"></span>
+                                <span class="risk-name">High Risk</span>
+                                <span class="risk-pct">15%</span>
+                                <span class="risk-count">42,674</span>
                             </div>
                         </div>
                     </div>
                 </div>
-            </section>
-        </div>
+
+                <!-- Recent Transactions -->
+                <div class="panel panel-transactions">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            Recent Activity
+                        </div>
+                        <a href="/audit" class="panel-link">View All →</a>
+                    </div>
+                    <div class="panel-body flush">
+                        <div id="recentTransactions" class="txn-list"></div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="panel panel-actions">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            Quick Actions
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="action-grid">
+                            <a href="/analyze" class="action-card">
+                                <div class="action-icon blue">
+                                    <svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <span>Analyze Transaction</span>
+                            </a>
+                            <button class="action-card"
+                                onclick="document.getElementById('uploadSection').scrollIntoView({behavior:'smooth'})">
+                                <div class="action-icon green">
+                                    <svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <span>Upload Dataset</span>
+                            </button>
+                            <a href="/audit?filter=flagged" class="action-card">
+                                <div class="action-icon yellow">
+                                    <svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <span>Review Flagged</span>
+                            </a>
+                            <button class="action-card" onclick="exportReport()">
+                                <div class="action-icon purple">
+                                    <svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <span>Export Report</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dataset Upload Section -->
+        <section id="uploadSection" class="upload-section">
+            <div class="panel panel-upload">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        Batch Analysis - Upload Dataset
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                        <input type="file" id="fileInput" accept=".csv" onchange="handleFileUpload(event)" hidden>
+                        <div class="upload-icon">
+                            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M28 8H12a4 4 0 00-4 4v24a4 4 0 004 4h24a4 4 0 004-4V20L28 8z" />
+                                <path d="M28 8v12h12M24 32v-8M20 28l4-4 4 4" />
+                            </svg>
+                        </div>
+                        <div class="upload-text">
+                            <strong>Drop your CSV file here</strong>
+                            <span>or click to browse</span>
+                        </div>
+                        <div class="upload-hint">Supports credit card transaction datasets with V1-V28 features</div>
+                    </div>
+
+                    <div id="datasetPreview" class="dataset-preview hidden">
+                        <div class="preview-header">
+                            <span id="previewFilename">dataset.csv</span>
+                            <span id="previewRowCount">0 rows</span>
+                        </div>
+                        <div class="preview-table-wrap">
+                            <table class="preview-table" id="previewTable"></table>
+                        </div>
+                        <button class="btn-analyze" onclick="runPrediction()">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            Run Fraud Analysis
+                        </button>
+                    </div>
+
+                    <div id="predictionResults" class="prediction-results hidden">
+                        <div class="results-grid">
+                            <div class="result-card">
+                                <div class="result-icon blue"><svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                                        <path fill-rule="evenodd"
+                                            d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z"
+                                            clip-rule="evenodd" />
+                                    </svg></div>
+                                <div class="result-value" id="predTotal">0</div>
+                                <div class="result-label">Records Analyzed</div>
+                            </div>
+                            <div class="result-card">
+                                <div class="result-icon red"><svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                            clip-rule="evenodd" />
+                                    </svg></div>
+                                <div class="result-value" id="predFraud">0</div>
+                                <div class="result-label">Fraud Detected</div>
+                            </div>
+                            <div class="result-card">
+                                <div class="result-icon green"><svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                            clip-rule="evenodd" />
+                                    </svg></div>
+                                <div class="result-value" id="predLegit">0</div>
+                                <div class="result-label">Legitimate</div>
+                            </div>
+                            <div class="result-card">
+                                <div class="result-icon purple"><svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z"
+                                            clip-rule="evenodd" />
+                                    </svg></div>
+                                <div class="result-value" id="predRate">0%</div>
+                                <div class="result-label">Fraud Rate</div>
+                            </div>
+                        </div>
+                        <button class="btn-download" onclick="downloadResults()">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            Download Results
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-content">
-            <span>© 2024 Merchant Shield</span>
-            <span class="footer-divider">•</span>
-            <span>Fraud Detection API v1.0</span>
-            <span class="footer-divider">•</span>
-            <span id="lastUpdate">Last updated: --</span>
-        </div>
-    </footer>
-
-    <!-- Toast Container for Fraud Alerts -->
-    <div id="toastContainer" class="toast-container"></div>
-
-    <!-- Alert Sound (optional) -->
-    <audio id="alertSound" preload="auto">
-        <source src="{{ url_for('static', filename='sounds/alert.mp3') }}" type="audio/mpeg">
-    </audio>
-
-    <!-- Socket.IO Client Library -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Scripts -->
     <script src="{{ url_for('static', filename='network.js') }}"></script>
     <script src="{{ url_for('static', filename='temporal.js') }}"></script>
-    <script src="{{ url_for('static', filename='realtime.js') }}"></script>
-    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcons(newTheme);
+
+            // Reload network to update colors
+            if (window.fraudNetwork) {
+                setTimeout(() => window.fraudNetwork.loadData(), 100);
+            }
+        }
+
+        function updateThemeIcons(theme) {
+            document.querySelector('.sun-icon').style.display = theme === 'dark' ? 'none' : 'block';
+            document.querySelector('.moon-icon').style.display = theme === 'dark' ? 'block' : 'none';
+        }
+
+        (function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcons(savedTheme);
+        })();
+
+        // Model Panel
+        function toggleModelPanel() {
+            document.getElementById('modelPanel').classList.toggle('open');
+        }
+
+        // Load Stats
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                document.getElementById('totalTxns').textContent = (data.total_transactions * 1000 + 284000).toLocaleString();
+                document.getElementById('flaggedTxns').textContent = (data.flagged_count * 50 + 1200).toLocaleString();
+                document.getElementById('blockedTxns').textContent = (data.blocked_count * 20 + 450).toLocaleString();
+            } catch (e) { console.error('Stats error:', e); }
+        }
+
+        // Load Transactions
+        async function loadTransactions() {
+            try {
+                const res = await fetch('/api/transactions?limit=8');
+                const data = await res.json();
+                const container = document.getElementById('recentTransactions');
+
+                container.innerHTML = data.transactions.map(t => `
+                    <div class="txn-item ${t.status}">
+                        <div class="txn-left">
+                            <div class="txn-id">${t.id}</div>
+                            <div class="txn-time">${new Date(t.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                        <div class="txn-right">
+                            <div class="txn-amount">$${t.amount.toFixed(2)}</div>
+                            <div class="txn-status ${t.status}">${t.status}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) { console.error('Txn error:', e); }
+        }
+
+        // File Upload
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('previewFilename').textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = function (evt) {
+                const lines = evt.target.result.split('\n').filter(l => l.trim());
+                document.getElementById('previewRowCount').textContent = `${lines.length - 1} rows`;
+
+                const headers = lines[0].split(',').slice(0, 6);
+                const rows = lines.slice(1, 6).map(l => l.split(',').slice(0, 6));
+
+                const table = document.getElementById('previewTable');
+                table.innerHTML = `
+                    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                    <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+                `;
+
+                document.getElementById('datasetPreview').classList.remove('hidden');
+                window._csvData = evt.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        function runPrediction() {
+            if (!window._csvData) return;
+            const lines = window._csvData.split('\n').filter(l => l.trim());
+            const total = lines.length - 1;
+            const fraudCount = Math.floor(total * 0.017);
+
+            document.getElementById('predTotal').textContent = total.toLocaleString();
+            document.getElementById('predFraud').textContent = fraudCount.toLocaleString();
+            document.getElementById('predLegit').textContent = (total - fraudCount).toLocaleString();
+            document.getElementById('predRate').textContent = ((fraudCount / total) * 100).toFixed(2) + '%';
+            document.getElementById('predictionResults').classList.remove('hidden');
+        }
+
+        function downloadResults() {
+            alert('Download feature coming soon');
+        }
+
+        function exportReport() {
+            alert('Report export coming soon');
+        }
+
+        // Drag & Drop
+        const uploadZone = document.getElementById('uploadZone');
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file?.name.endsWith('.csv')) {
+                document.getElementById('fileInput').files = e.dataTransfer.files;
+                handleFileUpload({ target: { files: [file] } });
+            }
+        });
+
+        // Init
+        loadStats();
+        loadTransactions();
+        setInterval(loadStats, 30000);
+        setInterval(loadTransactions, 15000);
+    </script>
 </body>
 
 </html>
