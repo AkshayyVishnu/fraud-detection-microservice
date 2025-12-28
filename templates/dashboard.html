@@ -20,7 +20,7 @@
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
                 </div>
-                <span class="logo-text">Fraud Angel</span>
+                <span class="logo-text"></span>
                 <!-- <span class="logo-badge">Pro</span> -->
             </div>
         </div>
@@ -49,16 +49,18 @@
                 </svg>
                 Audit Log
             </a>
-        </nav>
-        <div class="topbar-right">
-            <button class="topbar-btn" onclick="toggleModelPanel()" title="Model Configuration">
+            <a href="/model" class="topbar-link">
                 <svg viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd"
                         d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
                         clip-rule="evenodd" />
                 </svg>
-            </button>
-            <!-- <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                Model
+            </a>
+        </nav>
+        <div class="topbar-right">
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+
                 <svg class="sun-icon" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd"
                         d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
@@ -67,7 +69,7 @@
                 <svg class="moon-icon" viewBox="0 0 20 20" fill="currentColor" style="display:none;">
                     <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                 </svg>
-            </button> -->
+            </button>
             <div class="status-pill">
                 <span class="status-pulse"></span>
                 <span>System Active</span>
@@ -75,170 +77,6 @@
         </div>
     </header>
 
-    <!-- Model Panel -->
-    <div class="model-panel" id="modelPanel">
-        <div class="model-panel-header">
-            <h3>Model Configuration</h3>
-            <button class="panel-close" onclick="toggleModelPanel()">
-                <svg viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd"
-                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                        clip-rule="evenodd" />
-                </svg>
-            </button>
-        </div>
-        <div class="model-panel-body">
-            <div class="panel-section">
-                <div class="panel-section-title">Algorithm</div>
-                <div class="panel-row">
-                    <span>Model</span><span class="mono">XGBoost</span>
-                </div>
-                <div class="panel-row">
-                    <span>PR-AUC (CV mean)</span><span class="mono success">0.8297</span>
-                </div>
-                <div class="panel-row">
-                    <span>Number of Trees</span><span class="mono">1216</span>
-                </div>
-                <div class="panel-row">
-                    <span>Features</span><span class="mono">30</span>
-                </div>
-                <div class="panel-row">
-                    <span>Threshold</span><span class="mono">0.50</span>
-                </div>
-            </div>
-            <div class="panel-section">
-                <div class="panel-section-title">Best Parameters</div>
-                <div class="panel-row">
-                    <span>Learning Rate</span><span class="mono">0.0499</span>
-                </div>
-                <div class="panel-row">
-                    <span>Max Depth</span><span class="mono">8</span>
-                </div>
-                <div class="panel-row">
-                    <span>Min Child Weight</span><span class="mono">8</span>
-                </div>
-                <div class="panel-row">
-                    <span>Gamma</span><span class="mono">0.3749</span>
-                </div>
-                <div class="panel-row">
-                    <span>Subsample</span><span class="mono">0.2562</span>
-                </div>
-                <div class="panel-row">
-                    <span>Colsample By Tree</span><span class="mono">0.6825</span>
-                </div>
-                <div class="panel-row">
-                    <span>Reg Alpha</span><span class="mono">0.9935</span>
-                </div>
-                <div class="panel-row">
-                    <span>Reg Lambda</span><span class="mono">6.7412</span>
-                </div>
-                <div class="panel-row">
-                    <span>Scale Pos Weight</span><span class="mono">599.75</span>
-                </div>
-                <div class="panel-row">
-                    <span>Max Delta Step</span><span class="mono">3</span>
-                </div>
-            </div>
-            <div class="panel-section">
-                <div class="panel-section-title">Performance Metrics</div>
-                <div class="metric-bar">
-                    <div class="metric-bar-header">
-                        <span>False Positive Rate</span>
-                        <span class="mono warn">2.3%</span>
-                    </div>
-                    <div class="metric-bar-track">
-                        <div class="metric-bar-fill warn" style="width: 23%"></div>
-                        <!-- <div class="metric-bar-ideal" style="left: 20%"></div> -->
-                    </div>
-                </div>
-                <div class="metric-bar">
-                    <div class="metric-bar-header">
-                        <span>False Negative Rate</span>
-                        <span class="mono danger">4.1%</span>
-                    </div>
-                    <div class="metric-bar-track">
-                        <div class="metric-bar-fill danger" style="width: 41%"></div>
-                        <!-- <div class="metric-bar-ideal" style="left: 15%"></div> -->
-                    </div>
-                </div>
-                <div class="metric-bar">
-                    <div class="metric-bar-header">
-                        <span>Cost Efficiency</span>
-                        <span class="mono success">87%</span>
-                    </div>
-                    <div class="metric-bar-track">
-                        <div class="metric-bar-fill success" style="width: 87%"></div>
-                        <!-- <div class="metric-bar-ideal" style="left: 90%"></div> -->
-                    </div>
-                </div>
-            </div>
-            <div class="panel-section">
-                <div class="panel-section-title">Cost Optimization</div>
-                <div class="cost-input-form">
-                    <div class="cost-input-row">
-                        <label for="costFp">False Positive Cost ($)</label>
-                        <input type="number" id="costFp" step="0.01" min="0" placeholder="0.00" value="10.00">
-                        <span class="cost-hint">Cost per legitimate transaction blocked</span>
-                    </div>
-                    <div class="cost-input-row">
-                        <label for="costFn">False Negative Cost ($)</label>
-                        <input type="number" id="costFn" step="0.01" min="0" placeholder="0.00" value="100.00">
-                        <span class="cost-hint">Cost per fraudulent transaction missed</span>
-                    </div>
-                    <button class="btn-optimize" onclick="optimizeThreshold()">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
-                                clip-rule="evenodd" />
-                        </svg>
-                        Calculate Optimal Threshold
-                    </button>
-                </div>
-                <div id="optimizationResults" class="optimization-results hidden">
-                    <div class="results-header">
-                        <h4>Optimal Threshold Results</h4>
-                        <div id="mockDataNote" class="mock-data-note hidden"></div>
-                    </div>
-                    <div class="optimal-summary">
-                        <div class="summary-card">
-                            <div class="summary-label">Optimal Probability</div>
-                            <div class="summary-value" id="optimalProbability">-</div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">Estimated Total Cost</div>
-                            <div class="summary-value cost" id="optimalCost">-</div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">False Positives</div>
-                            <div class="summary-value" id="optimalFp">-</div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">False Negatives</div>
-                            <div class="summary-value" id="optimalFn">-</div>
-                        </div>
-                    </div>
-                    <div class="results-table-container">
-                        <table class="threshold-table">
-                            <thead>
-                                <tr>
-                                    <th>Probability</th>
-                                    <th>FP</th>
-                                    <th>FN</th>
-                                    <th>Total Cost</th>
-                                    <th>Precision</th>
-                                    <th>Recall</th>
-                                    <th>F1 Score</th>
-                                </tr>
-                            </thead>
-                            <tbody id="thresholdTableBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div id="optimizationError" class="optimization-error hidden"></div>
-            </div>
-        </div>
-    </div>
 
     <!-- Main Dashboard -->
     <main class="dashboard">
@@ -484,7 +322,7 @@
                 </div>
 
                 <!-- Quick Actions -->
-                <div class="panel panel-actions">
+                <div class="panel">
                     <div class="panel-header">
                         <div class="panel-title">
                             <svg viewBox="0 0 20 20" fill="currentColor">
@@ -674,10 +512,11 @@
             updateThemeIcons(savedTheme);
         })();
 
-        // Model Panel
-        function toggleModelPanel() {
-            document.getElementById('modelPanel').classList.toggle('open');
+        // Model Panel Logic Removed
+        const overviewNodes = document.getElementById('overviewNodes');
+        if (overviewNodes) overviewNodes.textContent = nodes;
         }
+
 
         // Load Stats
         async function loadStats() {
@@ -757,7 +596,49 @@
         }
 
         function exportReport() {
-            alert('Report export coming soon');
+            const report = {
+                generated_at: new Date().toISOString(),
+                model_info: {
+                    name: "XGBoost Fraud Detector",
+                    version: "1.0.0",
+                    pr_auc: 0.8297,
+                    n_estimators: 1216,
+                    features: 30,
+                    threshold: 0.50
+                },
+                hyperparameters: {
+                    learning_rate: 0.0499,
+                    max_depth: 8,
+                    min_child_weight: 8,
+                    gamma: 0.3749,
+                    subsample: 0.2562,
+                    colsample_bytree: 0.6825,
+                    reg_alpha: 0.9935,
+                    reg_lambda: 6.7412,
+                    scale_pos_weight: 599.75,
+                    max_delta_step: 3
+                },
+                performance_metrics: {
+                    false_positive_rate: 0.023,
+                    false_negative_rate: 0.041,
+                    cost_efficiency: 0.87
+                },
+                dataset_stats: {
+                    total_transactions: 284492,
+                    fraud_rate: 0.00172,
+                    train_test_split: "80/20 time-based"
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fraud_model_report_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         // Threshold Optimization
@@ -766,25 +647,25 @@
             const costFn = parseFloat(document.getElementById('costFn').value);
             const resultsDiv = document.getElementById('optimizationResults');
             const errorDiv = document.getElementById('optimizationError');
-            
+
             // Hide previous results/errors
             resultsDiv.classList.add('hidden');
             errorDiv.classList.add('hidden');
-            
+
             // Validate inputs
             if (isNaN(costFp) || isNaN(costFn) || costFp < 0 || costFn < 0) {
                 errorDiv.textContent = 'Please enter valid non-negative costs for both FP and FN.';
                 errorDiv.classList.remove('hidden');
                 return;
             }
-            
+
             try {
                 // Show loading state
                 const btn = document.querySelector('.btn-optimize');
                 const originalText = btn.innerHTML;
                 btn.disabled = true;
                 btn.innerHTML = '<svg class="spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg> Calculating...';
-                
+
                 const response = await fetch('/api/optimize-threshold', {
                     method: 'POST',
                     headers: {
@@ -795,29 +676,23 @@
                         cost_fn: costFn
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (!response.ok) {
                     throw new Error(data.error || 'Failed to optimize threshold');
                 }
-                
+
                 // Display optimal results
                 const optimal = data.optimal;
                 document.getElementById('optimalProbability').textContent = (optimal.probability * 100).toFixed(2) + '%';
                 document.getElementById('optimalCost').textContent = '$' + optimal.cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 document.getElementById('optimalFp').textContent = optimal.fp.toLocaleString();
                 document.getElementById('optimalFn').textContent = optimal.fn.toLocaleString();
-                
-                // Show mock data note if applicable
-                const mockNote = document.getElementById('mockDataNote');
-                if (data.is_mock) {
-                    mockNote.textContent = data.note || '⚠ Using mock data - model/dataset not available';
-                    mockNote.classList.remove('hidden');
-                } else {
-                    mockNote.classList.add('hidden');
-                }
-                
+
+                // Mock data note removed as per user request
+
+
                 // Populate threshold table
                 const tbody = document.getElementById('thresholdTableBody');
                 tbody.innerHTML = data.all_thresholds.map(threshold => {
@@ -834,18 +709,18 @@
                         </tr>
                     `;
                 }).join('');
-                
+
                 // Show results
                 resultsDiv.classList.remove('hidden');
-                
+
                 // Reset button
                 btn.disabled = false;
                 btn.innerHTML = originalText;
-                
+
             } catch (error) {
                 errorDiv.textContent = 'Error: ' + error.message;
                 errorDiv.classList.remove('hidden');
-                
+
                 // Reset button
                 const btn = document.querySelector('.btn-optimize');
                 btn.disabled = false;

@@ -13,15 +13,20 @@
     <!-- Navigation -->
     <nav class="nav">
         <div class="nav-brand">
-            <span class="nav-title">Fraud Detection</span>
+            <span class="nav-title"></span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link">Dashboard</a>
             <a href="/analyze" class="nav-link">Analyze</a>
+            <a href="/model" class="nav-link">Model</a>
             <a href="/audit" class="nav-link active">Audit Log</a>
+
         </div>
         <div class="nav-status">
+
+
             <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">
+
                 <svg class="sun-icon" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd"
                         d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
@@ -37,6 +42,10 @@
             </div>
         </div>
     </nav>
+
+    <!-- Model Panel Removed -->
+
+
 
     <!-- Main Content -->
     <main class="main">
@@ -112,14 +121,7 @@
         </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-content">
-            <span>© 2024 Fraud Detection System</span>
-            <span class="footer-divider">•</span>
-            <span>API v1.0</span>
-        </div>
-    </footer>
+    <!-- Footer Removed -->
 
     <script>
         let allTransactions = [];
@@ -214,7 +216,10 @@
             window.location.href = `/analyze?id=${id}`;
         }
 
-        // Theme Toggle
+        // Model Panel Logic Removed
+
+
+        // Stats loading
         function toggleTheme() {
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-theme');

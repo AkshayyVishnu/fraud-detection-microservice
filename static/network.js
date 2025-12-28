@@ -141,7 +141,9 @@ class FraudNetworkGraph {
 
         } catch (error) {
             console.error('[FraudNetwork] Error loading:', error);
-            this.showError('Failed to load network data: ' + error.message);
+            // DEBUG: Show detailed error to user
+            this.showError('Failed to load: ' + error.message);
+            // alert('Network Graph Error: ' + error.message); // Visual debug
         }
     }
 

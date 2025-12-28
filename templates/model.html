@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Configuration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .model-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Extend the panel styles for full page */
+        .model-page-panel {
+            background-color: var(--color-bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 600px;
+        }
+
+        .model-page-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .model-page-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin: 0 0 8px 0;
+        }
+
+        .model-page-header p {
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .model-page-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--color-border);
+            padding: 0 24px;
+            background-color: var(--color-bg-secondary);
+        }
+
+        .page-tab-btn {
+            padding: 16px 24px;
+            background: none;
+            border: none;
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .page-tab-btn:hover {
+            color: var(--color-text-primary);
+        }
+
+        .page-tab-btn.active {
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+        }
+
+        .page-tab-content {
+            display: none;
+            padding: 24px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .page-tab-content.active {
+            display: block;
+        }
+
+        /* Reuse existing panel-row styles but with more spacing */
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .config-card {
+            background-color: var(--color-bg-secondary);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            border: 1px solid var(--color-border);
+        }
+
+        .config-card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--color-text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Audit List Styles Enhancement */
+        .full-audit-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .cost-calc {
+            display: flex;
+            align-items: flex-end;
+            gap: 24px;
+            margin-top: 12px;
+        }
+
+        .cost-calc .form-group {
+            flex: 1;
+            margin-bottom: 0 !important;
+        }
+
+        .cost-calc .btn {
+            height: 42px;
+            /* Align with inputs */
+            padding-left: 32px;
+            padding-right: 32px;
+        }
+
+        .cost-result {
+            display: flex;
+            gap: 48px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--color-border);
+            align-items: center;
+        }
+
+        .cost-result .panel-row {
+            flex: 1;
+            background: var(--color-bg-tertiary);
+            /* Slight contrast */
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 0;
+            /* Override panel-row margin */
+            border-bottom: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: flex-start;
+        }
+
+        .cost-result .panel-row span:first-child {
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .cost-result .panel-row span.mono {
+            font-size: 1.25rem;
+            color: var(--color-text-primary);
+        }
+
+        .full-audit-table th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .full-audit-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text-primary);
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                </div>
+                <span class="logo-text"></span>
+            </div>
+        </div>
+        <nav class="topbar-nav">
+            <a href="/" class="topbar-link">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                        d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                Overview
+            </a>
+            <a href="/analyze" class="topbar-link">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path fill-rule="evenodd"
+                        d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                        clip-rule="evenodd" />
+                </svg>
+                Analyze
+            </a>
+            <a href="/model" class="topbar-link active">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                        clip-rule="evenodd" />
+                </svg>
+                Model
+            </a>
+            <a href="/audit" class="topbar-link">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                        clip-rule="evenodd" />
+                </svg>
+                Audit Log
+            </a>
+        </nav>
+        <div class="topbar-right">
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                <svg class="sun-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                        clip-rule="evenodd" />
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 20 20" fill="currentColor" style="display:none;">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+            </button>
+            <div class="status-pill">
+                <span class="status-pulse"></span>
+                <span>System Active</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="model-container">
+            <div class="model-page-panel">
+                <div class="model-page-header">
+                    <h1>Model Configuration</h1>
+                    <p>Manage model parameters, view audit logs, and monitor system health.</p>
+                </div>
+
+                <div class="model-page-tabs">
+                    <button class="page-tab-btn active"
+                        onclick="switchPageTab('tabConfig', this)">Configuration</button>
+                    <button class="page-tab-btn" onclick="switchPageTab('tabOverview', this)">Global Overview</button>
+                    <button class="page-tab-btn" onclick="switchPageTab('tabAudit', this)">Audit Log</button>
+                </div>
+
+                <!-- Config Tab -->
+                <div id="tabConfig" class="page-tab-content active">
+                    <div class="config-grid">
+                        <div class="config-card">
+                            <div class="config-card-title">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                Algorithm Settings
+                            </div>
+                            <div class="panel-row"><span>Model</span><span class="mono">XGBoost</span></div>
+                            <div class="panel-row"><span>Mode</span><span class="mono">Gradient Boosting</span></div>
+                            <div class="panel-row"><span>Number of Trees</span><span class="mono">1216</span></div>
+                            <div class="panel-row"><span>Objective</span><span class="mono">Binary Logistic</span></div>
+                        </div>
+
+                        <div class="config-card">
+                            <div class="config-card-title">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 6.707 6.293a1 1 0 00-1.414 1.414L8.586 11l-3.293 3.293a1 1 0 101.414 1.414L10 12.414l3.293 3.293a1 1 0 001.414-1.414L11.414 11l3.293-3.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                Performance Metrics
+                            </div>
+                            <div class="panel-row"><span>PR-AUC (CV mean)</span><span class="mono success">0.8297</span>
+                            </div>
+                            <div class="panel-row"><span>Training Samples</span><span class="mono">256,208</span></div>
+                            <div class="panel-row"><span>Features</span><span class="mono">30</span></div>
+                            <div class="panel-row"><span>Threshold</span><span class="mono">0.50</span></div>
+                        </div>
+
+                        <div class="config-card">
+                            <div class="config-card-title">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                Hyperparameters
+                            </div>
+                            <div class="panel-row"><span>Learning Rate</span><span class="mono">0.0499</span></div>
+                            <div class="panel-row"><span>Max Depth</span><span class="mono">8</span></div>
+                            <div class="panel-row"><span>Colsample By Tree</span><span class="mono">0.7</span></div>
+                            <div class="panel-row"><span>Subsample</span><span class="mono">0.7</span></div>
+                        </div>
+
+                        <!-- Cost Calculator Integrated -->
+                        <div class="config-card" style="grid-column: 1 / -1;">
+                            <div class="config-card-title">Cost Optimization</div>
+                            <div class="cost-calc">
+                                <div class="form-group">
+                                    <label class="form-label">False Positive Cost (₹)</label>
+                                    <input type="number" id="modelCostFP" class="form-input" value="2000">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">False Negative Cost (₹)</label>
+                                    <input type="number" id="modelCostFN" class="form-input" value="200000">
+                                </div>
+                                <button class="btn btn-primary" onclick="calculateCost()">Calculate Optimal
+                                    Threshold</button>
+                            </div>
+                            <div id="costResult" class="cost-result hidden">
+                                <div class="panel-row">
+                                    <span>Optimal Threshold</span>
+                                    <span class="mono" id="optThreshold">--</span>
+                                </div>
+                                <div class="panel-row">
+                                    <span>Minimum Total Cost</span>
+                                    <span class="mono" id="minCost">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overview Tab -->
+                <div id="tabOverview" class="page-tab-content">
+                    <div class="panel-section">
+                        <div class="panel-section-title">System Health</div>
+                        <div class="overview-grid">
+                            <div class="overview-card">
+                                <div class="overview-label">Uptime</div>
+                                <div class="overview-value">99.98%</div>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-label">Latency</div>
+                                <div class="overview-value">42ms</div>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-label">Throughput</div>
+                                <div class="overview-value">1.2k/s</div>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-label">Active Nodes</div>
+                                <div class="overview-value">842</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-section" style="margin-top: 24px;">
+                        <div class="panel-section-title">Model Status</div>
+                        <div class="config-card">
+                            <div class="panel-row"><span>Active Version</span><span class="mono">v2.4.1</span></div>
+                            <div class="panel-row"><span>Last Retrained</span><span class="mono">2 hours ago</span>
+                            </div>
+                            <div class="panel-row"><span>Auto-Retrain</span><span class="mono success">Enabled</span>
+                            </div>
+                            <div class="panel-row"><span>Next Schedule</span><span class="mono">03:00 AM UTC</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audit Tab -->
+                <div id="tabAudit" class="page-tab-content">
+                    <div class="panel-section">
+                        <div class="panel-section-title"
+                            style="display: flex; justify-content: space-between; align-items: center;">
+                            Recent Flags
+                            <button class="btn btn-secondary compact" onclick="loadFullAuditLog()">Refresh</button>
+                        </div>
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table class="full-audit-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Time</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Risk</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditTableBody">
+                                    <!-- Populated by JS -->
+                                    <tr>
+                                        <td colspan="5" style="text-align:center; padding: 24px;">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Removed -->
+
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        // Tab Switching
+        function switchPageTab(tabId, btn) {
+            document.querySelectorAll('.page-tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.page-tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+
+            if (tabId === 'tabAudit') {
+                loadFullAuditLog();
+            }
+        }
+
+        // Cost Calculator
+        async function calculateCost() {
+            const btn = document.querySelector('.cost-calc button');
+            const originalText = btn.innerText;
+            btn.innerText = '...';
+            btn.disabled = true;
+
+            try {
+                const fp = parseFloat(document.getElementById('modelCostFP').value);
+                const fn = parseFloat(document.getElementById('modelCostFN').value);
+
+                const res = await fetch('/api/optimize-threshold', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cost_fp: fp, cost_fn: fn })
+                });
+
+                const data = await res.json();
+                document.getElementById('costResult').classList.remove('hidden');
+                document.getElementById('optThreshold').innerText = data.optimal.probability.toFixed(2);
+                document.getElementById('minCost').innerText = '$' + data.optimal.cost.toLocaleString();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Audit Log Loader
+        async function loadFullAuditLog() {
+            try {
+                const res = await fetch('/api/transactions?limit=20');
+                const data = await res.json();
+                const tbody = document.getElementById('auditTableBody');
+
+                tbody.innerHTML = data.transactions.map(t => `
+                    <tr>
+                        <td class="mono" style="font-size:0.8rem">${t.id}</td>
+                        <td>${new Date(t.timestamp).toLocaleTimeString()}</td>
+                        <td class="mono">$${t.amount.toFixed(2)}</td>
+                        <td><span class="status-badge ${t.status}">${t.status}</span></td>
+                        <td>${t.risk_level || '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Audit load error:', e);
+                document.getElementById('auditTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--color-error);">Failed to load transactions</td></tr>';
+            }
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcons(newTheme);
+        }
+
+        function updateThemeIcons(theme) {
+            const sunIcon = document.querySelector('.sun-icon');
+            const moonIcon = document.querySelector('.moon-icon');
+            if (theme === 'dark') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        }
+
+        (function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcons(savedTheme);
+        })();
+    </script>
+</body>
+
+</html>
