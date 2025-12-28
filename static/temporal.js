@@ -104,21 +104,9 @@ class FraudTimeMachine {
         if (!this.tooltip) {
             this.tooltip = document.createElement('div');
             this.tooltip.className = 'temporal-tooltip';
-            this.tooltip.style.cssText = `
-                position: fixed;
-                background: var(--color-surface-1);
-                border: 1px solid var(--color-border);
-                border-radius: 8px;
-                padding: 12px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-                z-index: 1000;
-                pointer-events: none;
-                opacity: 0;
-                transition: opacity 0.2s;
-                min-width: 180px;
-            `;
             document.body.appendChild(this.tooltip);
         }
+
 
         cells.forEach(cell => {
             cell.addEventListener('mouseenter', (e) => {
@@ -337,7 +325,8 @@ class FraudTimeMachine {
         }
 
         this.velocityLevel = level;
-        this.elements.velocityFill.className = `velocity-fill ${level}`;
+        this.elements.velocityFill.className = `velocity-bar-fill ${level}`;
+
         this.elements.velocityValue.textContent = `${velocityMultiplier.toFixed(1)}x`;
     }
 

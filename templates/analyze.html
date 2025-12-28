@@ -7,21 +7,27 @@
     <title>Analyze Transaction</title>
     <meta name="description" content="Analyze a transaction for fraud risk">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
     <!-- Navigation -->
     <nav class="nav">
         <div class="nav-brand">
-            <span class="nav-title">Fraud Detection</span>
+            <span class="nav-title"></span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link">Dashboard</a>
             <a href="/analyze" class="nav-link active">Analyze</a>
+            <a href="/model" class="nav-link">Model</a>
             <a href="/audit" class="nav-link">Audit Log</a>
+
         </div>
         <div class="nav-status">
+
             <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">
+
                 <svg class="sun-icon" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd"
                         d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
@@ -31,12 +37,13 @@
                     <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                 </svg>
             </button>
-            <div class="status-indicator">
-                <span class="status-dot"></span>
-                <span class="status-text">Active</span>
-            </div>
+            <!-- Footer Removed -->
         </div>
     </nav>
+
+    <!-- Model Panel Removed -->
+
+
 
     <!-- Main Content -->
     <main class="main">
@@ -246,7 +253,16 @@
                             </svg>
                             Model Training
                         </div>
-                        <span class="training-status" id="trainingStatus">Idle</span>
+                        <div class="header-actions" style="display: flex; align-items: center; gap: 12px;">
+                            <div class="training-status" id="trainingStatus">Idle</div>
+                            <button id="btnCancelTraining" class="btn btn-cancel hidden" onclick="cancelTraining()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <path d="M18 6L6 18M6 6l12 12"></path>
+                                </svg>
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                     <div class="panel-body">
                         <!-- Progress Bar -->
@@ -267,9 +283,14 @@
                                 <div class="metric-label">AUC-ROC</div>
                             </div>
                             <div class="metric-card">
+                                <div class="metric-value" id="metricPrAuc">--</div>
+                                <div class="metric-label">PR-AUC</div>
+                            </div>
+                            <div class="metric-card">
                                 <div class="metric-value" id="metricLoss">--</div>
                                 <div class="metric-label">Loss</div>
                             </div>
+
                             <div class="metric-card">
                                 <div class="metric-value" id="metricEpoch">--</div>
                                 <div class="metric-label">Epoch</div>
@@ -278,11 +299,11 @@
                                 <div class="metric-value" id="metricTrees">--</div>
                                 <div class="metric-label">Trees</div>
                             </div>
-                        </div>
 
-                        <!-- Loss Chart -->
-                        <div class="chart-container">
-                            <canvas id="lossChart" height="200"></canvas>
+                            <div class="chart-container"
+                                style="grid-column: 1 / -1; position: relative; height: 300px; width: 100%;">
+                                <canvas id="lossChart"></canvas>
+                            </div>
                         </div>
 
                         <!-- Feature Importance -->
@@ -300,9 +321,9 @@
             <div class="result-panel hidden" id="resultPanel">
                 <div class="result-card" id="resultCard">
                     <div class="result-header" id="resultHeader">
-                        <div>
+                        <div style="flex: 1;">
                             <div class="result-title" id="resultTitle">Risk Assessment</div>
-                            <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 0.25rem;"
+                            <div style="font-size: 1rem; color: var(--color-text-secondary); margin-top: 12px;"
                                 id="resultTimestamp"></div>
                         </div>
                         <div class="result-probability" id="resultProbability">--</div>
@@ -335,14 +356,7 @@
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-content">
-            <span>© 2024 Fraud Detection System</span>
-            <span class="footer-divider">•</span>
-            <span>API v1.0</span>
-        </div>
-    </footer>
+    <!-- Footer Removed -->
 
     <script>
         // Test data presets
@@ -416,11 +430,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Analysis failed');
+                }
+
                 const result = await response.json();
+
+                // Display the result
                 displayResult(result);
+
+                // Note: Transaction appending happens automatically in the backend
+
             } catch (error) {
                 console.error('Analysis failed:', error);
-                alert('Analysis failed. Please try again.');
+                alert('Analysis failed: ' + error.message);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Analyze Risk';
@@ -466,14 +491,24 @@
                 </div>
             `;
 
-            factorsList.innerHTML = result.explanation.primary_factors.map(factor => `
-                <div class="factor-item">
-                    <span>${factor}</span>
-                </div>
-            `).join('');
+            // Display primary risk factors
+            if (result.explanation && result.explanation.primary_factors) {
+                factorsList.innerHTML = result.explanation.primary_factors.map(factor => `
+                    <div class="factor-item">
+                        <span>${factor}</span>
+                    </div>
+                `).join('');
+            } else {
+                factorsList.innerHTML = '<div class="factor-item"><span>No specific risk factors identified</span></div>';
+            }
 
+            // Show the result panel
             panel.classList.remove('hidden');
-            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Scroll to result panel smoothly
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         }
 
         // Theme Toggle
@@ -503,6 +538,231 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
             updateThemeIcons(savedTheme);
         })();
+
+        // Training functionality
+        let socket;
+        let lossChart;
+
+        function initSocket() {
+            if (socket) return;
+
+            socket = io();
+
+            socket.on('training_started', (state) => {
+                const trainingPanel = document.getElementById('trainingPanel');
+                trainingPanel.classList.remove('hidden');
+                document.getElementById('btnCancelTraining').classList.remove('hidden');
+                updateTrainingUI(state);
+                initChart();
+            });
+
+
+            socket.on('training_progress', (state) => {
+                updateTrainingUI(state);
+                if (state.loss_history && state.loss_history.length > 0) {
+                    if (!lossChart) {
+                        console.log('Initializing chart from progress update');
+                        initChart();
+                    }
+                    updateChart(state.loss_history);
+                }
+            });
+
+
+            socket.on('training_completed', (state) => {
+                updateTrainingUI(state);
+                renderFeatureImportance(state.feature_importance);
+                document.getElementById('trainingStatus').textContent = 'Completed';
+                document.getElementById('trainingStatus').className = 'training-status completed';
+                document.getElementById('btnCancelTraining').classList.add('hidden');
+            });
+
+            socket.on('training_cancelled', (state) => {
+                document.getElementById('trainingStatus').textContent = 'Cancelled';
+                document.getElementById('trainingStatus').className = 'training-status error';
+                document.getElementById('btnCancelTraining').classList.add('hidden');
+            });
+
+
+            socket.on('training_error', (data) => {
+                alert('Training error: ' + data.error);
+                document.getElementById('trainingStatus').textContent = 'Error';
+                document.getElementById('trainingStatus').className = 'training-status error';
+            });
+        }
+
+        function updateTrainingUI(state) {
+            document.getElementById('trainingStatus').textContent = state.status.charAt(0).toUpperCase() + state.status.slice(1);
+            document.getElementById('progressPercent').textContent = `${state.progress}%`;
+            document.getElementById('progressFill').style.width = `${state.progress}%`;
+
+            if (state.metrics) {
+                document.getElementById('metricAuc').textContent = state.metrics.auc_roc || '--';
+                document.getElementById('metricPrAuc').textContent = state.metrics.pr_auc || '--';
+                document.getElementById('metricLoss').textContent = state.metrics.loss || '--';
+                document.getElementById('metricEpoch').textContent = state.current_epoch || '--';
+                document.getElementById('metricTrees').textContent = state.metrics.trees || '--';
+            }
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('lossChart').getContext('2d');
+            if (lossChart) lossChart.destroy();
+
+            lossChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Loss',
+                            data: [],
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'AUC-ROC',
+                            data: [],
+                            borderColor: '#3b82f6',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 6,
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: { display: true, text: 'Epoch', color: '#64748b' },
+                            ticks: { color: '#64748b' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'Loss', color: '#ef4444' },
+                            ticks: { color: '#64748b' },
+                            min: 0,
+                            suggestedMax: 1,
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'AUC', color: '#3b82f6' },
+                            ticks: { color: '#64748b' },
+                            min: 0,
+                            max: 1,
+                            grid: { drawOnChartArea: false, color: 'rgba(0,0,0,0.05)' }
+                        }
+                    }
+
+                }
+            });
+            console.log('Chart initialized');
+        }
+
+        function updateChart(history) {
+            if (!lossChart || !history.length) return;
+
+            // Sliding window: Show only last 50 epochs to prevent "expanding without bound"
+            const windowSize = 50;
+            const recentHistory = history.slice(-windowSize);
+
+            lossChart.data.labels = recentHistory.map(h => h.epoch);
+            lossChart.data.datasets[0].data = recentHistory.map(h => h.loss);
+            lossChart.data.datasets[1].data = recentHistory.map(h => h.auc);
+
+            // Ensure scales update
+            lossChart.update();
+        }
+
+        function renderFeatureImportance(importance) {
+            const container = document.getElementById('importanceBars');
+            if (!importance) return;
+
+            container.innerHTML = importance.map(item => `
+                <div class="importance-item">
+                    <div class="importance-info">
+                        <span class="importance-name">${item.feature_name}</span>
+                        <span class="importance-val">${(item.importance * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="importance-bar-bg">
+                        <div class="importance-bar-fill" style="width: ${item.importance * 100}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function startTraining() {
+            initSocket();
+            initChart();
+
+            const trainingPanel = document.getElementById('trainingPanel');
+            document.getElementById('btnCancelTraining').classList.add('hidden');
+
+            trainingPanel.classList.remove('hidden');
+            trainingPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            fetch('/api/train-model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    use_additional_dataset: true,
+                    epochs: 100
+                })
+            }).then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Training failed: ' + data.error);
+                    }
+                }).catch(error => {
+                    console.error('Training error:', error);
+                    alert('Failed to start training.');
+                });
+        }
+
+        function cancelTraining() {
+            if (!confirm('Are you sure you want to cancel training?')) return;
+
+            fetch('/api/cancel-training', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Failed to cancel: ' + data.error);
+                    }
+                }).catch(error => {
+                    console.error('Cancel error:', error);
+                });
+        }
+
+
     </script>
 </body>
 
