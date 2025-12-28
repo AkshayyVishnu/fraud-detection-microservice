@@ -13,7 +13,7 @@
     <!-- Navigation -->
     <nav class="nav">
         <div class="nav-brand">
-            <span class="nav-title">Fraud Detection</span>
+            <span class="nav-title">FraudAngel</span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link">Dashboard</a>
@@ -300,9 +300,9 @@
             <div class="result-panel hidden" id="resultPanel">
                 <div class="result-card" id="resultCard">
                     <div class="result-header" id="resultHeader">
-                        <div>
+                        <div style="flex: 1;">
                             <div class="result-title" id="resultTitle">Risk Assessment</div>
-                            <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 0.25rem;"
+                            <div style="font-size: 1rem; color: var(--color-text-secondary); margin-top: 12px;"
                                 id="resultTimestamp"></div>
                         </div>
                         <div class="result-probability" id="resultProbability">--</div>
@@ -326,6 +326,14 @@
                         <div class="result-section">
                             <div class="result-section-title">Primary Risk Factors</div>
                             <div class="factors-list" id="factorsList">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Model Information -->
+                        <div class="result-section">
+                            <div class="result-section-title">Model Information</div>
+                            <div class="model-info-grid" id="modelInfoGrid">
                                 <!-- Filled by JS -->
                             </div>
                         </div>
@@ -372,7 +380,14 @@
                 v11: 10.123456, v12: -15.678901, v13: -2.345678, v14: -18.5, v15: 0.876543,
                 v16: -8.765432, v17: -12.123456, v18: -3.456789, v19: 2.345678, v20: 0.987654,
                 v21: 1.234567, v22: -0.654321, v23: -2.876543, v24: 0.543210, v25: 0.321098,
-                v26: 0.654321, v27: 1.234567, v28: -0.876543
+                v26: 0.654321, v27: 1.234567, v28: -0.876543,
+                // Also provide uppercase versions for API compatibility
+                V1: -18.5, V2: 8.234567, V3: -15.123456, V4: 12.345678, V5: -8.765432,
+                V6: -5.432109, V7: -12.345678, V8: 15.234567, V9: -6.543210, V10: -18.234567,
+                V11: 10.123456, V12: -15.678901, V13: -2.345678, V14: -18.5, V15: 0.876543,
+                V16: -8.765432, V17: -12.123456, V18: -3.456789, V19: 2.345678, V20: 0.987654,
+                V21: 1.234567, V22: -0.654321, V23: -2.876543, V24: 0.543210, V25: 0.321098,
+                V26: 0.654321, V27: 1.234567, V28: -0.876543
             }
         };
 
@@ -383,10 +398,13 @@
             document.getElementById('time').value = data.time;
             for (let i = 1; i <= 28; i++) {
                 const input = document.getElementById(`v${i}`);
-                if (input && data[`v${i}`] !== undefined) {
-                    input.value = data[`v${i}`];
+                // Try both lowercase and uppercase
+                const value = data[`v${i}`] !== undefined ? data[`v${i}`] : data[`V${i}`];
+                if (input && value !== undefined) {
+                    input.value = value;
                 }
             }
+            console.log(`[DEBUG] Filled ${type} test data - Amount: ${data.amount}, V14: ${data.v14 || data.V14}, V17: ${data.v17 || data.V17}`);
         }
 
         function clearForm() {
@@ -405,10 +423,22 @@
                 time: parseInt(document.getElementById('time').value) || 0
             };
 
+            // Extract V features - use uppercase V for API compatibility
             for (let i = 1; i <= 28; i++) {
-                const value = document.getElementById(`v${i}`).value;
+                const input = document.getElementById(`v${i}`);
+                const value = input ? input.value : '';
+                // Send both lowercase (for form) and uppercase (for API) versions
                 formData[`v${i}`] = parseFloat(value) || 0;
+                formData[`V${i}`] = parseFloat(value) || 0;
             }
+            
+            console.log('[DEBUG] Form data being sent:', {
+                amount: formData.amount,
+                time: formData.time,
+                v1: formData.v1,
+                v14: formData.v14,
+                v17: formData.v17
+            });
 
             try {
                 const response = await fetch('/api/analyze-risk', {
@@ -416,11 +446,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Analysis failed');
+                }
+                
                 const result = await response.json();
+                
+                // Display the result
                 displayResult(result);
+                
+                // Note: Transaction appending happens automatically in the backend
+                
             } catch (error) {
                 console.error('Analysis failed:', error);
-                alert('Analysis failed. Please try again.');
+                alert('Analysis failed: ' + error.message);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Analyze Risk';
@@ -441,7 +482,25 @@
             header.className = `result-header ${riskClass}-risk`;
             probability.className = `result-probability ${riskClass}`;
 
-            probability.textContent = `${(result.fraud_probability * 100).toFixed(1)}%`;
+            // Ensure fraud_probability is a valid number
+            const fraudProb = typeof result.fraud_probability === 'number' 
+                ? result.fraud_probability 
+                : parseFloat(result.fraud_probability) || 0;
+            
+            // Clamp to valid range [0, 1]
+            const clampedProb = Math.max(0, Math.min(1, fraudProb));
+            
+            // Display probability as percentage
+            probability.textContent = `${(clampedProb * 100).toFixed(1)}%`;
+            
+            // Log for debugging
+            console.log('[DEBUG] Display result:', {
+                fraud_probability: fraudProb,
+                clamped_probability: clampedProb,
+                risk_level: result.risk_level,
+                is_fraud: result.is_fraud
+            });
+            
             title.textContent = `${result.risk_level} Risk Assessment`;
             timestamp.textContent = `Analyzed at ${new Date().toLocaleTimeString()}`;
             recommendation.textContent = result.recommendation;
@@ -466,14 +525,69 @@
                 </div>
             `;
 
-            factorsList.innerHTML = result.explanation.primary_factors.map(factor => `
-                <div class="factor-item">
-                    <span>${factor}</span>
-                </div>
-            `).join('');
+            // Display primary risk factors
+            if (result.explanation && result.explanation.primary_factors) {
+                factorsList.innerHTML = result.explanation.primary_factors.map(factor => `
+                    <div class="factor-item">
+                        <span>${factor}</span>
+                    </div>
+                `).join('');
+            } else {
+                factorsList.innerHTML = '<div class="factor-item"><span>No specific risk factors identified</span></div>';
+            }
 
+            // Display model information
+            const modelInfoGrid = document.getElementById('modelInfoGrid');
+            if (result.model_info) {
+                const modelInfo = result.model_info;
+                const predDetails = modelInfo.prediction_details || {};
+                const bestParams = modelInfo.best_params || {};
+                
+                modelInfoGrid.innerHTML = `
+                    <div class="context-item">
+                        <span class="context-label">Model Type</span>
+                        <span class="context-value">${modelInfo.model_type || 'unknown'}</span>
+                    </div>
+                    <div class="context-item">
+                        <span class="context-label">Model Class</span>
+                        <span class="context-value">${modelInfo.model_class || 'unknown'}</span>
+                    </div>
+                    ${predDetails.legitimate_probability !== undefined ? `
+                    <div class="context-item">
+                        <span class="context-label">Legitimate Probability</span>
+                        <span class="context-value">${(predDetails.legitimate_probability * 100).toFixed(2)}%</span>
+                    </div>
+                    ` : ''}
+                    ${bestParams.learning_rate !== undefined ? `
+                    <div class="context-item">
+                        <span class="context-label">Learning Rate</span>
+                        <span class="context-value">${bestParams.learning_rate.toFixed(4)}</span>
+                    </div>
+                    ` : ''}
+                    ${bestParams.max_depth !== undefined ? `
+                    <div class="context-item">
+                        <span class="context-label">Max Depth</span>
+                        <span class="context-value">${bestParams.max_depth}</span>
+                    </div>
+                    ` : ''}
+                    ${bestParams.n_estimators !== undefined ? `
+                    <div class="context-item">
+                        <span class="context-label">Number of Trees</span>
+                        <span class="context-value">${bestParams.n_estimators}</span>
+                    </div>
+                    ` : ''}
+                `;
+            } else {
+                modelInfoGrid.innerHTML = '<div class="context-item"><span class="context-label">Model information not available</span></div>';
+            }
+
+            // Show the result panel
             panel.classList.remove('hidden');
-            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Scroll to result panel smoothly
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         }
 
         // Theme Toggle
@@ -503,6 +617,33 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
             updateThemeIcons(savedTheme);
         })();
+
+        // Training functionality
+        function startTraining() {
+            const trainingPanel = document.getElementById('trainingPanel');
+            trainingPanel.classList.remove('hidden');
+            trainingPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Start training with AdditionalCreditcard.csv
+            fetch('/api/train-model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    use_additional_dataset: true,
+                    epochs: 100
+                })
+            }).then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Training failed: ' + data.error);
+                } else {
+                    console.log('Training started:', data);
+                }
+            }).catch(error => {
+                console.error('Training error:', error);
+                alert('Failed to start training. Please try again.');
+            });
+        }
     </script>
 </body>
 

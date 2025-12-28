@@ -64,6 +64,145 @@ app.config['SECRET_KEY'] = 'fraud-detection-secret-key-change-in-production'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # ============================================================================
+# ADDITIONAL DATASET MANAGEMENT
+# ============================================================================
+
+def initialize_additional_dataset():
+    """
+    Create AdditionalCreditcard.csv as a copy of creditcard.csv if it doesn't exist.
+    This will be used for appending new transaction data and training.
+    """
+    import pandas as pd
+    from pathlib import Path
+    import shutil
+    
+    additional_path = config.ADDITIONAL_DATASET_PATH
+    
+    # If AdditionalCreditcard.csv already exists, don't overwrite
+    if additional_path.exists():
+        print(f"✓ AdditionalCreditcard.csv already exists at {additional_path}")
+        return True
+    
+    # Try to find the original creditcard.csv
+    possible_paths = [
+        config.DATASET_PATH,
+        Path(__file__).parent / "data" / "dataset" / "creditcard.csv",
+        Path(__file__).parent / "creditcard.csv",
+    ]
+    
+    original_path = None
+    for path in possible_paths:
+        if Path(path).exists():
+            original_path = Path(path)
+            break
+    
+    if original_path is None:
+        print(f"⚠ Original creditcard.csv not found. AdditionalCreditcard.csv will be created when first transaction is added.")
+        return False
+    
+    try:
+        # Copy the file
+        shutil.copy2(original_path, additional_path)
+        print(f"✓ Created AdditionalCreditcard.csv from {original_path}")
+        return True
+    except Exception as e:
+        print(f"⚠ Error creating AdditionalCreditcard.csv: {e}")
+        return False
+
+def append_transaction_to_dataset(transaction_data, is_fraud=None):
+    """
+    Append a transaction to AdditionalCreditcard.csv.
+    
+    Args:
+        transaction_data: Dictionary with transaction fields (amount, time, v1-v28)
+        is_fraud: Optional boolean indicating if transaction is fraud. If None, will be set to 0.
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    import pandas as pd
+    from pathlib import Path
+    
+    additional_path = config.ADDITIONAL_DATASET_PATH
+    
+    # Initialize dataset if it doesn't exist
+    if not additional_path.exists():
+        if not initialize_additional_dataset():
+            # If initialization failed, create empty file with headers
+            try:
+                # Try to read original to get headers
+                possible_paths = [
+                    config.DATASET_PATH,
+                    Path(__file__).parent / "data" / "dataset" / "creditcard.csv",
+                ]
+                original_path = None
+                for path in possible_paths:
+                    if Path(path).exists():
+                        original_path = Path(path)
+                        break
+                
+                if original_path:
+                    df_sample = pd.read_csv(original_path, nrows=0)
+                    df_sample.to_csv(additional_path, index=False)
+                    print(f"✓ Created empty AdditionalCreditcard.csv with headers")
+                else:
+                    # Create with standard headers
+                    columns = ['Time', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10',
+                              'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18', 'V19', 'V20',
+                              'V21', 'V22', 'V23', 'V24', 'V25', 'V26', 'V27', 'V28', 'Amount', 'Class']
+                    df_empty = pd.DataFrame(columns=columns)
+                    df_empty.to_csv(additional_path, index=False)
+                    print(f"✓ Created empty AdditionalCreditcard.csv with standard headers")
+            except Exception as e:
+                print(f"⚠ Error creating AdditionalCreditcard.csv: {e}")
+                return False
+    
+    try:
+        # Read existing data
+        df = pd.read_csv(additional_path)
+        
+        # Prepare new row
+        new_row = {
+            'Time': transaction_data.get('time', 0),
+            'Amount': transaction_data.get('amount', 0.0),
+        }
+        
+        # Add V1-V28
+        for i in range(1, 29):
+            v_key = f'v{i}'
+            new_row[f'V{i}'] = transaction_data.get(v_key, 0.0)
+        
+        # Set Class (fraud label)
+        if is_fraud is None:
+            # If not provided, use 0 (legitimate) by default
+            # In production, this should be determined by actual fraud detection
+            new_row['Class'] = 0
+        else:
+            new_row['Class'] = 1 if is_fraud else 0
+        
+        # Create DataFrame from new row
+        new_df = pd.DataFrame([new_row])
+        
+        # Ensure column order matches existing file
+        new_df = new_df[df.columns]
+        
+        # Append to existing data
+        df = pd.concat([df, new_df], ignore_index=True)
+        
+        # Save back to file
+        df.to_csv(additional_path, index=False)
+        
+        print(f"✓ Appended transaction to AdditionalCreditcard.csv (Total rows: {len(df)})")
+        return True
+        
+    except Exception as e:
+        print(f"⚠ Error appending transaction: {e}")
+        return False
+
+# Initialize on startup
+initialize_additional_dataset()
+
+# ============================================================================
 # MOCK DATA - Will be replaced with actual ML model predictions
 # ============================================================================
 
@@ -154,14 +293,27 @@ def analyze_risk():
     if not data:
         return jsonify({"error": "No data provided"}), 400
     
+    # Initialize model_info variable
+    model_info = {
+        "model_type": "mock",
+        "model_class": "MockModel",
+        "best_params": None,
+        "prediction_details": {}
+    }
+    
     # Use ML model if available, otherwise fallback to mock
     if MODEL_AVAILABLE:
         try:
             # Get real prediction and SHAP explanation
+            print(f"[DEBUG] Analyzing transaction with data: amount={data.get('amount')}, time={data.get('time')}")
             result = explain_transaction_from_request(data)
             fraud_prob = result['fraud_probability']
             is_fraud = result['is_fraud']
             shap_explanation = result['shap_explanation']
+            model_info = result.get('model_info', model_info)  # Get model information
+            
+            print(f"[DEBUG] Model prediction: fraud_prob={fraud_prob}, is_fraud={is_fraud}")
+            print(f"[DEBUG] Model used: {model_info.get('model_type', 'unknown')} ({model_info.get('model_class', 'unknown')})")
             
             # Format SHAP explanation for response
             explanation_list = [
@@ -176,7 +328,9 @@ def analyze_risk():
             ]
             
         except Exception as e:
-            print(f"Error in ML prediction: {e}")
+            import traceback
+            print(f"[ERROR] Error in ML prediction: {e}")
+            traceback.print_exc()
             # Fallback to mock
             fraud_prob = random.uniform(0.05, 0.95)
             is_fraud = fraud_prob > 0.5
@@ -189,8 +343,10 @@ def analyze_risk():
                     "description": f"Model error: {str(e)}"
                 }
             ]
+            print(f"[DEBUG] Using fallback mock prediction: fraud_prob={fraud_prob}")
     else:
         # Fallback to mock prediction
+        print("[DEBUG] MODEL_AVAILABLE is False, using mock prediction")
         fraud_prob = random.uniform(0.05, 0.95)
         is_fraud = fraud_prob > 0.5
         explanation_list = [
@@ -202,6 +358,7 @@ def analyze_risk():
                 "description": "ML model not available - using mock data"
             }
         ]
+        print(f"[DEBUG] Mock prediction: fraud_prob={fraud_prob}")
     
     # Determine risk level
     if fraud_prob > 0.70:
@@ -214,9 +371,14 @@ def analyze_risk():
         risk_level = "LOW"
         recommendation = "APPROVE - Transaction appears legitimate"
     
+    # Ensure fraud_probability is valid
+    if not isinstance(fraud_prob, (int, float)) or fraud_prob < 0 or fraud_prob > 1:
+        print(f"[ERROR] Invalid fraud_probability: {fraud_prob}, clamping to [0, 1]")
+        fraud_prob = max(0.0, min(1.0, float(fraud_prob)))
+    
     # Build response with temporal context (placeholder)
     response = {
-        "fraud_probability": round(fraud_prob, 4),
+        "fraud_probability": float(fraud_prob),  # Ensure it's a float, not rounded too early
         "is_fraud": is_fraud,
         "risk_level": risk_level,
         "temporal_context": {
@@ -230,7 +392,8 @@ def analyze_risk():
             "primary_factors": [exp['feature'] for exp in explanation_list[:3]]
         },
         "shap_explanation": explanation_list,
-        "recommendation": recommendation
+        "recommendation": recommendation,
+        "model_info": model_info
     }
     
     # Log transaction
@@ -253,6 +416,10 @@ def analyze_risk():
     
     # Emit new transaction via WebSocket
     socketio.emit('new_transaction', transaction)
+    
+    # Append transaction to AdditionalCreditcard.csv for future training
+    # Use the fraud probability to determine if it's likely fraud (threshold: 0.5)
+    append_transaction_to_dataset(data, is_fraud=is_fraud)
     
     return jsonify(response)
 
@@ -389,6 +556,84 @@ def get_real_temporal():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def _generate_mock_optimization_results(cost_fp, cost_fn):
+    """
+    Generate mock threshold optimization results when model/dataset is not available.
+    This provides realistic-looking data for demonstration purposes.
+    """
+    # Generate mock thresholds with realistic metrics
+    thresholds = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    all_thresholds = []
+    
+    # Base test set size (mock)
+    test_size = 56864  # Typical test set size
+    
+    for threshold in thresholds:
+        # Mock metrics that vary realistically with threshold
+        # Lower threshold = more FPs, fewer FNs
+        # Higher threshold = fewer FPs, more FNs
+        
+        # Fraud rate ~0.17% (typical for credit card fraud)
+        fraud_count = int(test_size * 0.0017)
+        legit_count = test_size - fraud_count
+        
+        # Calculate FP and FN based on threshold
+        # At low threshold: high recall (low FN), low precision (high FP)
+        # At high threshold: low recall (high FN), high precision (low FP)
+        
+        recall = 0.95 - (threshold - 0.1) * 0.7  # Decreases from 0.95 to 0.25
+        precision = 0.3 + (threshold - 0.1) * 0.6  # Increases from 0.3 to 0.9
+        
+        # Calculate TP, FP, FN, TN
+        tp = int(fraud_count * recall)
+        fn = fraud_count - tp
+        
+        # FP = predicted fraud but actually legit
+        # precision = TP / (TP + FP)
+        if precision > 0:
+            fp = int(tp / precision - tp)
+        else:
+            fp = int(legit_count * (1 - threshold))
+        
+        # Ensure FP doesn't exceed legit count
+        fp = min(fp, legit_count)
+        tn = legit_count - fp
+        
+        # Calculate cost
+        total_cost = (fp * cost_fp) + (fn * cost_fn)
+        
+        # Calculate F1 score
+        if precision + recall > 0:
+            f1_score = 2 * (precision * recall) / (precision + recall)
+        else:
+            f1_score = 0.0
+        
+        # Calculate accuracy
+        accuracy = (tp + tn) / test_size if test_size > 0 else 0.0
+        
+        all_thresholds.append({
+            'probability': threshold,
+            'fp': fp,
+            'fn': fn,
+            'cost': round(total_cost, 2),
+            'precision': round(precision, 4),
+            'recall': round(recall, 4),
+            'f1_score': round(f1_score, 4),
+            'accuracy': round(accuracy, 4),
+            'tp': tp,
+            'tn': tn
+        })
+    
+    # Find optimal threshold (minimum cost)
+    optimal = min(all_thresholds, key=lambda x: x['cost'])
+    
+    return {
+        'all_thresholds': all_thresholds,
+        'optimal': optimal,
+        'is_mock': True,
+        'note': 'Mock data - model/dataset not available. Results are for demonstration only.'
+    }
+
 @app.route('/api/optimize-threshold', methods=['POST'])
 def optimize_threshold():
     """
@@ -471,18 +716,40 @@ def optimize_threshold():
         X_test = X.iloc[split_idx:]
         y_test = y.iloc[split_idx:]
         
-        # Evaluate model at multiple thresholds
+        # Evaluate model at multiple thresholds using eval.py
+        # This returns a dictionary with threshold as key and metrics (including fp, fn) as value
         eval_results = evaluate_model_at_thresholds(model, X_test, y_test)
         
-        # Calculate costs and find optimal threshold
+        # Validate that eval_results contain fp and fn values
+        if not eval_results:
+            raise ValueError("Evaluation returned no results")
+        
+        # Verify FP and FN are present in results
+        sample_threshold = list(eval_results.keys())[0]
+        if 'fp' not in eval_results[sample_threshold] or 'fn' not in eval_results[sample_threshold]:
+            raise ValueError("Evaluation results missing FP or FN values")
+        
+        # Calculate costs and find optimal threshold using FP and FN from eval.py
+        # loss.py's compute_optimal_threshold uses: fp * cost_fp + fn * cost_fn
         result = compute_optimal_threshold(eval_results, cost_fp, cost_fn)
+        
+        # Add metadata to indicate real evaluation data was used
+        result['is_mock'] = False
+        result['note'] = 'Results based on actual model evaluation from eval.py'
         
         return jsonify(result)
         
     except FileNotFoundError as e:
-        return jsonify({"error": f"Model file not found: {str(e)}"}), 404
+        # Return mock data when model/dataset not available
+        print(f"⚠ Model/dataset not found, using mock optimization data: {str(e)}")
+        return jsonify(_generate_mock_optimization_results(cost_fp, cost_fn)), 200
     except Exception as e:
-        return jsonify({\"error\": f\"Error during optimization: {str(e)}\"}), 500
+        # If it's a dataset loading error, use mock data
+        error_str = str(e).lower()
+        if "dataset" in error_str or "not found" in error_str or "creditcard" in error_str:
+            print(f"⚠ Dataset error, using mock optimization data: {str(e)}")
+            return jsonify(_generate_mock_optimization_results(cost_fp, cost_fn)), 200
+        return jsonify({"error": f"Error during optimization: {str(e)}"}), 500
 
 # ============================================================================
 # TRAINING ENDPOINTS
@@ -533,16 +800,44 @@ FEATURE_NAME_MAPPING = {
     'V28': 'Historical Fraud Rate'
 }
 
+@app.route('/api/append-transaction', methods=['POST'])
+def append_transaction():
+    """
+    POST /api/append-transaction
+    
+    Append a transaction to AdditionalCreditcard.csv.
+    
+    Request body:
+    {
+        "amount": float,
+        "time": int,
+        "v1": float, ..., "v28": float,
+        "is_fraud": bool (optional)
+    }
+    """
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    success = append_transaction_to_dataset(data, is_fraud=data.get('is_fraud'))
+    
+    if success:
+        return jsonify({"message": "Transaction appended successfully"}), 200
+    else:
+        return jsonify({"error": "Failed to append transaction"}), 500
+
 @app.route('/api/train-model', methods=['POST'])
 def train_model_endpoint():
     """
     POST /api/train-model
     
-    Starts model training. Progress is streamed via WebSocket.
+    Starts model training using AdditionalCreditcard.csv.
+    Progress is streamed via WebSocket.
     
     Request body:
     {
-        "dataset_path": string (optional, defaults to creditcard.csv),
+        "use_additional_dataset": bool (optional, defaults to True),
         "epochs": int (optional, default 100)
     }
     """
@@ -553,6 +848,7 @@ def train_model_endpoint():
     
     data = request.get_json() or {}
     epochs = data.get('epochs', 100)
+    use_additional = data.get('use_additional_dataset', True)
     
     # Start training in background thread
     def run_training():
@@ -580,8 +876,23 @@ def train_model_endpoint():
             TRAINING_STATE["status"] = "loading_data"
             socketio.emit('training_progress', TRAINING_STATE)
             
-            # Load data
-            X, y, feature_cols = load_and_prepare_data()
+            # Load data - use AdditionalCreditcard.csv if available and requested
+            if use_additional and config.ADDITIONAL_DATASET_PATH.exists():
+                import pandas as pd
+                print(f"✓ Using AdditionalCreditcard.csv for training ({config.ADDITIONAL_DATASET_PATH})")
+                df = pd.read_csv(config.ADDITIONAL_DATASET_PATH)
+                print(f"   Dataset shape: {df.shape}")
+                print(f"   Fraud cases: {df['Class'].sum()} ({df['Class'].mean()*100:.2f}%)")
+                
+                # Prepare features
+                feature_cols = [f'V{i}' for i in range(1, 29)] + ['Amount', 'Time']
+                X = df[feature_cols].copy()
+                y = df['Class'].copy()
+            else:
+                # Use original dataset
+                if use_additional:
+                    print(f"⚠ AdditionalCreditcard.csv not found, using original dataset")
+                X, y, feature_cols = load_and_prepare_data()
             
             # Split
             X_train, X_test, y_train, y_test = train_test_split(

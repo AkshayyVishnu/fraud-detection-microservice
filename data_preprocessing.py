@@ -18,8 +18,8 @@ def load_dataset(file_path=None):
         # Try multiple possible paths
         possible_paths = [
             config.DATASET_PATH,
-            Path(__file__).parent / "creditcard.csv" / "creditcard.csv",
-            Path(__file__).parent / "data" / "creditcard.csv",
+            Path(__file__).parent / "data"/ "dataset" / "creditcard.csv",
+            Path(__file__).parent / "data" / "dataset" / "creditcard.csv",
         ]
         
         for path in possible_paths:
