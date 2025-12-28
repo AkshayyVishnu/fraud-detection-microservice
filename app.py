@@ -4,9 +4,12 @@ A lightweight fraud prevention microservice for small e-commerce businesses
 """
 
 from flask import Flask, render_template, jsonify, request
+from flask_socketio import SocketIO, emit
 from datetime import datetime
 import random
 import json
+import threading
+import time
 
 # Try to import data processor for real dataset
 try:
@@ -22,7 +25,43 @@ except ImportError as e:
     DATA_AVAILABLE = False
     print(f"⚠ Data processor not available: {e}")
 
+# Try to import ML model
+try:
+    from model_explainer import (
+        explain_transaction_from_request,
+        load_model,
+        predict_fraud_probability,
+        extract_features_from_request
+    )
+    MODEL_AVAILABLE = True
+    print("✓ ML model loaded successfully")
+    # Pre-load model on startup
+    load_model()
+except ImportError as e:
+    MODEL_AVAILABLE = False
+    print(f"⚠ ML model not available: {e}")
+except Exception as e:
+    MODEL_AVAILABLE = False
+    print(f"⚠ Error loading ML model: {e}")
+
+# Try to import evaluation and loss calculation modules
+try:
+    import joblib
+    import config
+    from eval import evaluate_model_at_thresholds
+    from data_preprocessing import load_dataset as load_dataset_preprocessing
+    from loss import compute_optimal_threshold
+    EVAL_MODULES_AVAILABLE = True
+    print("✓ Model evaluation modules loaded successfully")
+except ImportError as e:
+    EVAL_MODULES_AVAILABLE = False
+    print(f"⚠ Model evaluation modules not available: {e}")
+
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'fraud-detection-secret-key-change-in-production'
+
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # ============================================================================
 # MOCK DATA - Will be replaced with actual ML model predictions
@@ -90,7 +129,7 @@ def analyze_risk():
     """
     POST /api/analyze-risk
     
-    Analyzes a transaction and returns fraud risk assessment.
+    Analyzes a transaction and returns fraud risk assessment using ML model.
     
     Request body:
     {
@@ -106,7 +145,8 @@ def analyze_risk():
         "risk_level": "LOW" | "MEDIUM" | "HIGH",
         "temporal_context": {...},
         "explanation": {...},
-        "recommendation": string
+        "recommendation": string,
+        "shap_explanation": [...]
     }
     """
     data = request.get_json()
@@ -114,9 +154,54 @@ def analyze_risk():
     if not data:
         return jsonify({"error": "No data provided"}), 400
     
-    # For now, use mock prediction
-    # TODO: Replace with actual model.predict() call
-    fraud_prob = random.uniform(0.05, 0.95)
+    # Use ML model if available, otherwise fallback to mock
+    if MODEL_AVAILABLE:
+        try:
+            # Get real prediction and SHAP explanation
+            result = explain_transaction_from_request(data)
+            fraud_prob = result['fraud_probability']
+            is_fraud = result['is_fraud']
+            shap_explanation = result['shap_explanation']
+            
+            # Format SHAP explanation for response
+            explanation_list = [
+                {
+                    "feature": exp['feature'],
+                    "value": exp['value'],
+                    "importance": exp['importance'],
+                    "contribution": exp['contribution'],
+                    "description": exp['description']
+                }
+                for exp in shap_explanation
+            ]
+            
+        except Exception as e:
+            print(f"Error in ML prediction: {e}")
+            # Fallback to mock
+            fraud_prob = random.uniform(0.05, 0.95)
+            is_fraud = fraud_prob > 0.5
+            explanation_list = [
+                {
+                    "feature": "Error",
+                    "value": 0,
+                    "importance": 0,
+                    "contribution": "neutral",
+                    "description": f"Model error: {str(e)}"
+                }
+            ]
+    else:
+        # Fallback to mock prediction
+        fraud_prob = random.uniform(0.05, 0.95)
+        is_fraud = fraud_prob > 0.5
+        explanation_list = [
+            {
+                "feature": "Mock",
+                "value": 0,
+                "importance": 0,
+                "contribution": "neutral",
+                "description": "ML model not available - using mock data"
+            }
+        ]
     
     # Determine risk level
     if fraud_prob > 0.70:
@@ -132,7 +217,7 @@ def analyze_risk():
     # Build response with temporal context (placeholder)
     response = {
         "fraud_probability": round(fraud_prob, 4),
-        "is_fraud": fraud_prob > 0.5,
+        "is_fraud": is_fraud,
         "risk_level": risk_level,
         "temporal_context": {
             "recent_fraud_count": random.randint(0, 10),
@@ -142,12 +227,9 @@ def analyze_risk():
             "current_time_bucket_risk": random.choice(["LOW", "MODERATE", "HIGH", "CRITICAL"])
         },
         "explanation": {
-            "primary_factors": [
-                "Transaction amount analysis",
-                "Temporal pattern evaluation", 
-                "Historical behavior comparison"
-            ]
+            "primary_factors": [exp['feature'] for exp in explanation_list[:3]]
         },
+        "shap_explanation": explanation_list,
         "recommendation": recommendation
     }
     
@@ -159,6 +241,18 @@ def analyze_risk():
         **response
     }
     TRANSACTIONS.insert(0, transaction)
+    
+    # Emit via WebSocket if fraud detected
+    if is_fraud and fraud_prob > 0.7:
+        socketio.emit('fraud_alert', {
+            'transaction_id': transaction['id'],
+            'amount': transaction['amount'],
+            'fraud_probability': fraud_prob,
+            'timestamp': transaction['timestamp']
+        })
+    
+    # Emit new transaction via WebSocket
+    socketio.emit('new_transaction', transaction)
     
     return jsonify(response)
 
@@ -240,149 +334,26 @@ def get_temporal_data():
         "bucket_size_minutes": 30
     })
 
-def generate_mock_network_fallback():
-    """Generate mock network data that always works"""
-    import random
-    random.seed(42)
-    
-    nodes = []
-    edges = []
-    
-    # Generate 30 fraud nodes
-    for i in range(30):
-        hour = random.randint(0, 47)
-        minute = random.randint(0, 59)
-        nodes.append({
-            'id': f'TXN_{i:06d}',
-            'amount': random.uniform(50, 5000),
-            'time': hour * 3600 + minute * 60,
-            'time_label': f'{hour % 24:02d}:{minute:02d}',
-            'is_fraud': True,
-            'risk_score': random.uniform(0.7, 0.99),
-            'v14': random.uniform(-15, -5),
-            'v17': random.uniform(-10, -3)
-        })
-    
-    # Add legitimate nodes
-    for i in range(30, 50):
-        hour = random.randint(8, 20)
-        minute = random.randint(0, 59)
-        nodes.append({
-            'id': f'TXN_{i:06d}',
-            'amount': random.uniform(20, 500),
-            'time': hour * 3600 + minute * 60,
-            'time_label': f'{hour:02d}:{minute:02d}',
-            'is_fraud': False,
-            'risk_score': random.uniform(0.1, 0.4),
-            'v14': random.uniform(-2, 2),
-            'v17': random.uniform(-2, 2)
-        })
-    
-    # Generate edges between fraud nodes
-    fraud_nodes = [n for n in nodes if n['is_fraud']]
-    for i, node1 in enumerate(fraud_nodes):
-        for j, node2 in enumerate(fraud_nodes):
-            if i < j:
-                time_diff = abs(node1['time'] - node2['time'])
-                if time_diff < 1800:
-                    edges.append({
-                        'source': node1['id'],
-                        'target': node2['id'],
-                        'types': ['temporal', 'confirmed_fraud'],
-                        'strength': 0.8 if time_diff < 300 else 0.5,
-                        'time_diff': time_diff,
-                        'similarity': random.uniform(0.5, 0.9)
-                    })
-    
-    sessions = [
-        {'id': 'SESSION_001', 'start_time': '02:15', 'end_time': '02:42', 'count': 8, 'duration_minutes': 27, 'total_amount': 4523.50, 'transaction_ids': [f'TXN_{i:06d}' for i in range(8)]},
-        {'id': 'SESSION_002', 'start_time': '14:30', 'end_time': '14:58', 'count': 5, 'duration_minutes': 28, 'total_amount': 2180.00, 'transaction_ids': [f'TXN_{i:06d}' for i in range(8, 13)]}
-    ]
-    
-    return {
-        'nodes': nodes,
-        'edges': edges,
-        'sessions': sessions,
-        'stats': {
-            'total_nodes': len(nodes),
-            'total_edges': len(edges),
-            'fraud_count': len(fraud_nodes),
-            'sessions_detected': len(sessions)
-        }
-    }
-
 @app.route('/api/fraud-network')
 def get_fraud_network():
     """Get fraud network graph data for D3.js visualization"""
     if not DATA_AVAILABLE:
-        # Fallback to mock is handled inside the mock generator function above
-        # But we need to call it if we are here
-        return jsonify(generate_mock_network_fallback())
+        return jsonify({
+            "error": "Dataset not loaded",
+            "nodes": [],
+            "edges": [],
+            "sessions": [],
+            "stats": {}
+        })
     
     try:
         network = build_fraud_network(
             time_window_seconds=1800,  # 30 minutes
             similarity_threshold=0.6,
-            max_nodes=150
+            max_nodes=100
         )
-        # If network is empty, use mock
-        if not network.get('nodes'):
-            return jsonify(generate_mock_network_fallback())
         return jsonify(network)
     except Exception as e:
-        print(f"Error building network: {e}")
-        return jsonify(generate_mock_network_fallback())
-
-@app.route('/api/cluster-explanation')
-def get_cluster_explanation_api():
-    """Get SHAP-like explanation for a specific cluster/session"""
-    session_id = request.args.get('session_id')
-    if not session_id:
-        return jsonify({"error": "Missing session_id"}), 400
-        
-    if not DATA_AVAILABLE:
-        # Mock explanation
-        return jsonify({
-            "explanation": [
-                {"feature": "V14 (Behavior)", "value": -8.5, "importance": 0.85, "contribution": "negative", "description": "Highly abnormal behavioral pattern"},
-                {"feature": "V17 (Identity)", "value": -4.2, "importance": 0.65, "contribution": "negative", "description": "Identity verification mismatch"},
-                {"feature": "Time Burst", "value": 12, "importance": 0.45, "contribution": "positive", "description": "Sudden burst of 12 transactions"}
-            ]
-        })
-
-    try:
-        # We need the nodes to calculate explanation
-        # In a real app we would get them from DB, here we rebuild/cache
-        network = build_fraud_network(max_nodes=150)
-        nodes = network.get('nodes', [])
-        
-        # If session_id is a specific session, find its nodes
-        # For this demo, we'll just look for nodes that belong to the session
-        # But since our nodes don't have session_id explicitly in this simple version,
-        # we'll simulated it or use the session definition if available
-        # ACTUALLY, simpler: just return the mock explanation for now as user asked for "SHAP explanations"
-        # and our real data logic is limited. 
-        # But let's try to use the function we just added to data_processor
-        
-        from data_processor import get_cluster_explanation
-        
-        # Find session in network to get transaction IDs
-        sessions = network.get('sessions', [])
-        target_session = next((s for s in sessions if s['id'] == session_id), None)
-        
-        target_nodes = []
-        if target_session:
-            txn_ids = target_session.get('transaction_ids', [])
-            target_nodes = [n for n in nodes if n['id'] in txn_ids]
-        else:
-            # Maybe it's a node ID passed as session?
-            target_nodes = [n for n in nodes if n['id'] == session_id]
-            
-        explanation = get_cluster_explanation(session_id, target_nodes if target_nodes else nodes[:5])
-        return jsonify({"explanation": explanation})
-        
-    except Exception as e:
-        print(f"Explanation error: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/real-transactions')
@@ -418,49 +389,107 @@ def get_real_temporal():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/fraud-sessions')
-def get_fraud_sessions():
-    """Get detected fraud sessions/attack windows"""
-    if not DATA_AVAILABLE:
-        # Return mock sessions
-        return jsonify({
-            "sessions": [
-                {
-                    "id": "SESSION_001",
-                    "start_time": "02:15",
-                    "end_time": "02:42",
-                    "count": 8,
-                    "duration_minutes": 27,
-                    "total_amount": 4523.50,
-                    "transaction_ids": []
-                },
-                {
-                    "id": "SESSION_002", 
-                    "start_time": "14:30",
-                    "end_time": "14:58",
-                    "count": 5,
-                    "duration_minutes": 28,
-                    "total_amount": 2180.00,
-                    "transaction_ids": []
-                }
-            ],
-            "total": 2
-        })
+@app.route('/api/optimize-threshold', methods=['POST'])
+def optimize_threshold():
+    """
+    POST /api/optimize-threshold
+    
+    Finds the optimal probability threshold that minimizes total cost
+    based on false positive and false negative costs.
+    
+    Request body:
+    {
+        "cost_fp": float,  // Cost per false positive
+        "cost_fn": float   // Cost per false negative
+    }
+    
+    Response:
+    {
+        "all_thresholds": [
+            {
+                "probability": float,
+                "fp": int,
+                "fn": int,
+                "cost": float,
+                "precision": float,
+                "recall": float,
+                "f1_score": float,
+                "accuracy": float,
+                "tp": int,
+                "tn": int
+            },
+            ...
+        ],
+        "optimal": {
+            "probability": float,
+            "fp": int,
+            "fn": int,
+            "cost": float,
+            ...
+        }
+    }
+    """
+    if not EVAL_MODULES_AVAILABLE:
+        return jsonify({"error": "Model evaluation modules not available"}), 503
+    
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    cost_fp = data.get('cost_fp')
+    cost_fn = data.get('cost_fn')
+    
+    if cost_fp is None or cost_fn is None:
+        return jsonify({"error": "Both cost_fp and cost_fn are required"}), 400
     
     try:
-        network = build_fraud_network(max_nodes=50)
-        return jsonify({
-            "sessions": network.get('sessions', []),
-            "total": len(network.get('sessions', []))
-        })
+        cost_fp = float(cost_fp)
+        cost_fn = float(cost_fn)
+    except (ValueError, TypeError):
+        return jsonify({"error": "cost_fp and cost_fn must be valid numbers"}), 400
+    
+    if cost_fp < 0 or cost_fn < 0:
+        return jsonify({"error": "Costs must be non-negative"}), 400
+    
+    try:
+        # Load the trained model
+        model = joblib.load(config.TRAINED_MODEL_PATH)
+        
+        # Load dataset
+        df = load_dataset_preprocessing()
+        
+        # Sort by Time (same as training)
+        df = df.sort_values("Time").reset_index(drop=True)
+        
+        # Prepare features and target
+        X = df.drop("Class", axis=1)
+        y = df["Class"]
+        
+        # Create time-based train-test split (same as training: 80/20)
+        split_idx = int(0.8 * len(df))
+        X_test = X.iloc[split_idx:]
+        y_test = y.iloc[split_idx:]
+        
+        # Evaluate model at multiple thresholds
+        eval_results = evaluate_model_at_thresholds(model, X_test, y_test)
+        
+        # Calculate costs and find optimal threshold
+        result = compute_optimal_threshold(eval_results, cost_fp, cost_fn)
+        
+        return jsonify(result)
+        
+    except FileNotFoundError as e:
+        return jsonify({"error": f"Model file not found: {str(e)}"}), 404
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Error during optimization: {str(e)}"}), 500
 
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("  🛡️  THE MERCHANT SHIELD - Fraud Detection API")
     print("="*60)
     print(f"\n  📊 Data: {'LOADED' if DATA_AVAILABLE else 'MOCK MODE'}")
+    print(f"  🤖 ML Model: {'LOADED' if MODEL_AVAILABLE else 'MOCK MODE'}")
     print("\n  📊 Dashboard:    http://127.0.0.1:5000/")
     print("  📋 Audit Log:    http://127.0.0.1:5000/audit")
     print("  🔍 Analyze:      http://127.0.0.1:5000/analyze")
@@ -469,10 +498,14 @@ if __name__ == '__main__':
     print("  • GET  /api/transactions")
     print("  • GET  /api/stats")
     print("  • GET  /api/temporal-data")
-    print("  • GET  /api/fraud-network")
-    print("  • GET  /api/fraud-sessions  [NEW]")
-    print("  • GET  /api/real-transactions")
+    print("  • GET  /api/fraud-network    [NEW]")
+    print("  • GET  /api/real-transactions [NEW]")
+    print("  • POST /api/optimize-threshold [NEW]")
     print("\n" + "="*60 + "\n")
     
-    app.run(debug=True, port=5000)
+    # Start transaction simulator
+    simulator = start_transaction_simulator()
+    
+    # Run with SocketIO (supports WebSocket)
+    socketio.run(app, debug=True, port=5000, host='127.0.0.1')
 

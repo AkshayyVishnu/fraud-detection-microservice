@@ -1,11 +1,42 @@
+# Python
 __pycache__/
-*.pyc
-.DS_Store
-venv/
+*.py[cod]
+*$py.class
+*.so
+.Python
 env/
-node_modules/
-.idea/
+venv/
+ENV/
+.venv
+
+# Data
+data/
+*.csv
+data/
+creditcard.csv/
+# Models
+models/
+*.pkl
+*.pkl.gz
+*.h5
+*.hdf5
+
+# IDE
 .vscode/
-data/dataset/creditcard.csv
-__pycache__/
-*.pyc
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Optuna
+*.db
+*.sqlite
+*.sqlite3

@@ -224,16 +224,76 @@ def build_fraud_network(time_window_seconds=1800, similarity_threshold=0.5, max_
     
 def get_cluster_explanation(session_id, nodes):
     """
-    Generate SHAP-like explanations for a cluster/session.
-    Since we don't have a live model, we calculate feature deviations
-    from the legitimate baseline to simulate SHAP contribution.
+    Generate SHAP explanations for a cluster/session.
+    Uses real ML model if available, otherwise falls back to mock.
     """
     # Filter nodes for this session
     session_nodes = [n for n in nodes if n.get('id') in session_id or session_id == 'all']
     if not session_nodes:
         return []
 
-    # Calculate average feature values for cluster
+    # Try to use real ML model for SHAP explanations
+    try:
+        from model_explainer import explain_transaction_from_request
+        
+        # Get SHAP explanations for each node in cluster
+        all_explanations = []
+        for node in session_nodes[:5]:  # Limit to 5 for performance
+            try:
+                # Build feature dict from node
+                feature_dict = {
+                    'Amount': node.get('amount', 0),
+                    'Time': node.get('time', 0)
+                }
+                # Add V features
+                for i in range(1, 29):
+                    v_key = f'V{i}'
+                    if v_key.lower() in node:
+                        feature_dict[v_key] = node.get(v_key.lower(), 0)
+                    elif v_key in node:
+                        feature_dict[v_key] = node.get(v_key, 0)
+                
+                # Get SHAP explanation
+                result = explain_transaction_from_request(feature_dict)
+                all_explanations.extend(result['shap_explanation'])
+            except Exception as e:
+                print(f"Error explaining node {node.get('id')}: {e}")
+                continue
+        
+        # Aggregate by feature (take max importance)
+        if all_explanations:
+            feature_importance = {}
+            for exp in all_explanations:
+                feat = exp['feature']
+                if feat not in feature_importance:
+                    feature_importance[feat] = {
+                        'feature': exp['feature'],
+                        'value': exp['value'],
+                        'importance': 0,
+                        'contribution': exp['contribution'],
+                        'description': exp['description']
+                    }
+                feature_importance[feat]['importance'] = max(
+                    feature_importance[feat]['importance'],
+                    exp['importance']
+                )
+            
+            explanations = sorted(
+                feature_importance.values(),
+                key=lambda x: x['importance'],
+                reverse=True
+            )[:5]
+            
+            return explanations
+    except ImportError:
+        # Model not available, fall back to mock
+        pass
+    except Exception as e:
+        print(f"Error using ML model for cluster explanation: {e}")
+        # Fall back to mock
+        pass
+
+    # Fallback: Calculate average feature values for cluster
     avg_v14 = np.mean([n.get('v14', 0) for n in session_nodes])
     avg_v17 = np.mean([n.get('v17', 0) for n in session_nodes])
     avg_amount = np.mean([n.get('amount', 0) for n in session_nodes])

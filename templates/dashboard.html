@@ -47,6 +47,10 @@
                 <span class="status-dot"></span>
                 <span class="status-text">Monitoring</span>
             </div>
+            <div class="ws-status ws-status-disconnected" id="wsConnectionStatus">
+                <span class="ws-status-dot"></span>
+                <span class="ws-status-text">Connecting...</span>
+            </div>
         </div>
     </nav>
 
@@ -195,7 +199,7 @@
                 </div>
             </section>
 
-            <!-- Recent Transactions -->
+            <!-- Recent Transactions (Live Feed) -->
             <section class="card">
                 <div class="card-header">
                     <h2 class="card-title">
@@ -204,14 +208,16 @@
                                 d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
                                 clip-rule="evenodd" />
                         </svg>
-                        Recent Transactions
+                        Live Transactions
+                        <span class="live-badge">LIVE</span>
                     </h2>
                     <a href="/audit" class="card-link">View All →</a>
                 </div>
                 <div class="card-body card-body-flush">
-                    <div class="transaction-list" id="transactionList">
+                    <div class="transaction-list transaction-list-live" id="transactionList">
                         <div class="transaction-loading">
                             <div class="spinner"></div>
+                            <span>Connecting to live feed...</span>
                         </div>
                     </div>
                 </div>
@@ -355,9 +361,21 @@
         </div>
     </footer>
 
+    <!-- Toast Container for Fraud Alerts -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Alert Sound (optional) -->
+    <audio id="alertSound" preload="auto">
+        <source src="{{ url_for('static', filename='sounds/alert.mp3') }}" type="audio/mpeg">
+    </audio>
+
+    <!-- Socket.IO Client Library -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="{{ url_for('static', filename='network.js') }}"></script>
     <script src="{{ url_for('static', filename='temporal.js') }}"></script>
+    <script src="{{ url_for('static', filename='realtime.js') }}"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 
