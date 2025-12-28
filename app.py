@@ -293,14 +293,27 @@ def analyze_risk():
     if not data:
         return jsonify({"error": "No data provided"}), 400
     
+    # Initialize model_info variable
+    model_info = {
+        "model_type": "mock",
+        "model_class": "MockModel",
+        "best_params": None,
+        "prediction_details": {}
+    }
+    
     # Use ML model if available, otherwise fallback to mock
     if MODEL_AVAILABLE:
         try:
             # Get real prediction and SHAP explanation
+            print(f"[DEBUG] Analyzing transaction with data: amount={data.get('amount')}, time={data.get('time')}")
             result = explain_transaction_from_request(data)
             fraud_prob = result['fraud_probability']
             is_fraud = result['is_fraud']
             shap_explanation = result['shap_explanation']
+            model_info = result.get('model_info', model_info)  # Get model information
+            
+            print(f"[DEBUG] Model prediction: fraud_prob={fraud_prob}, is_fraud={is_fraud}")
+            print(f"[DEBUG] Model used: {model_info.get('model_type', 'unknown')} ({model_info.get('model_class', 'unknown')})")
             
             # Format SHAP explanation for response
             explanation_list = [
@@ -315,7 +328,9 @@ def analyze_risk():
             ]
             
         except Exception as e:
-            print(f"Error in ML prediction: {e}")
+            import traceback
+            print(f"[ERROR] Error in ML prediction: {e}")
+            traceback.print_exc()
             # Fallback to mock
             fraud_prob = random.uniform(0.05, 0.95)
             is_fraud = fraud_prob > 0.5
@@ -328,8 +343,10 @@ def analyze_risk():
                     "description": f"Model error: {str(e)}"
                 }
             ]
+            print(f"[DEBUG] Using fallback mock prediction: fraud_prob={fraud_prob}")
     else:
         # Fallback to mock prediction
+        print("[DEBUG] MODEL_AVAILABLE is False, using mock prediction")
         fraud_prob = random.uniform(0.05, 0.95)
         is_fraud = fraud_prob > 0.5
         explanation_list = [
@@ -341,6 +358,7 @@ def analyze_risk():
                 "description": "ML model not available - using mock data"
             }
         ]
+        print(f"[DEBUG] Mock prediction: fraud_prob={fraud_prob}")
     
     # Determine risk level
     if fraud_prob > 0.70:
@@ -353,9 +371,14 @@ def analyze_risk():
         risk_level = "LOW"
         recommendation = "APPROVE - Transaction appears legitimate"
     
+    # Ensure fraud_probability is valid
+    if not isinstance(fraud_prob, (int, float)) or fraud_prob < 0 or fraud_prob > 1:
+        print(f"[ERROR] Invalid fraud_probability: {fraud_prob}, clamping to [0, 1]")
+        fraud_prob = max(0.0, min(1.0, float(fraud_prob)))
+    
     # Build response with temporal context (placeholder)
     response = {
-        "fraud_probability": round(fraud_prob, 4),
+        "fraud_probability": float(fraud_prob),  # Ensure it's a float, not rounded too early
         "is_fraud": is_fraud,
         "risk_level": risk_level,
         "temporal_context": {
@@ -369,7 +392,8 @@ def analyze_risk():
             "primary_factors": [exp['feature'] for exp in explanation_list[:3]]
         },
         "shap_explanation": explanation_list,
-        "recommendation": recommendation
+        "recommendation": recommendation,
+        "model_info": model_info
     }
     
     # Log transaction
