@@ -482,7 +482,7 @@ def optimize_threshold():
     except FileNotFoundError as e:
         return jsonify({"error": f"Model file not found: {str(e)}"}), 404
     except Exception as e:
-        return jsonify({\"error\": f\"Error during optimization: {str(e)}\"}), 500
+        return jsonify({"error": f"Error during optimization: {str(e)}"}), 500
 
 # ============================================================================
 # TRAINING ENDPOINTS
