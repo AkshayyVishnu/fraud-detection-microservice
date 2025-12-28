@@ -29,6 +29,7 @@ MODEL_CONFIG = {
 }
 
 # Dataset paths (will be checked in data_preprocessing.py)
-DATASET_PATH = BASE_DIR / "creditcard.csv" / "creditcard.csv"  # Primary location
+DATASET_PATH = BASE_DIR / "dataset" / "creditcard.csv"  # Primary location
+ADDITIONAL_DATASET_PATH = BASE_DIR / "data" /"dataset" / "AdditionalCreditcard.csv"  # Extended dataset for training
 TRAINED_MODEL_PATH = MODELS_DIR / "xgb_fraud_model.pkl"
 CALIBRATED_MODEL_PATH = MODELS_DIR / "xgb_fraud_model_calibrated.pkl"

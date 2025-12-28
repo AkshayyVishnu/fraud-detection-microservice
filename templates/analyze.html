@@ -13,7 +13,7 @@
     <!-- Navigation -->
     <nav class="nav">
         <div class="nav-brand">
-            <span class="nav-title">Fraud Detection</span>
+            <span class="nav-title">FraudAngel</span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link">Dashboard</a>
@@ -300,9 +300,9 @@
             <div class="result-panel hidden" id="resultPanel">
                 <div class="result-card" id="resultCard">
                     <div class="result-header" id="resultHeader">
-                        <div>
+                        <div style="flex: 1;">
                             <div class="result-title" id="resultTitle">Risk Assessment</div>
-                            <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 0.25rem;"
+                            <div style="font-size: 1rem; color: var(--color-text-secondary); margin-top: 12px;"
                                 id="resultTimestamp"></div>
                         </div>
                         <div class="result-probability" id="resultProbability">--</div>
@@ -416,11 +416,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Analysis failed');
+                }
+                
                 const result = await response.json();
+                
+                // Display the result
                 displayResult(result);
+                
+                // Note: Transaction appending happens automatically in the backend
+                
             } catch (error) {
                 console.error('Analysis failed:', error);
-                alert('Analysis failed. Please try again.');
+                alert('Analysis failed: ' + error.message);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Analyze Risk';
@@ -466,14 +477,24 @@
                 </div>
             `;
 
-            factorsList.innerHTML = result.explanation.primary_factors.map(factor => `
-                <div class="factor-item">
-                    <span>${factor}</span>
-                </div>
-            `).join('');
+            // Display primary risk factors
+            if (result.explanation && result.explanation.primary_factors) {
+                factorsList.innerHTML = result.explanation.primary_factors.map(factor => `
+                    <div class="factor-item">
+                        <span>${factor}</span>
+                    </div>
+                `).join('');
+            } else {
+                factorsList.innerHTML = '<div class="factor-item"><span>No specific risk factors identified</span></div>';
+            }
 
+            // Show the result panel
             panel.classList.remove('hidden');
-            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Scroll to result panel smoothly
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         }
 
         // Theme Toggle
@@ -503,6 +524,33 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
             updateThemeIcons(savedTheme);
         })();
+
+        // Training functionality
+        function startTraining() {
+            const trainingPanel = document.getElementById('trainingPanel');
+            trainingPanel.classList.remove('hidden');
+            trainingPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Start training with AdditionalCreditcard.csv
+            fetch('/api/train-model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    use_additional_dataset: true,
+                    epochs: 100
+                })
+            }).then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Training failed: ' + data.error);
+                } else {
+                    console.log('Training started:', data);
+                }
+            }).catch(error => {
+                console.error('Training error:', error);
+                alert('Failed to start training. Please try again.');
+            });
+        }
     </script>
 </body>
 
