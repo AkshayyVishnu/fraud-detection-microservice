@@ -97,40 +97,8 @@ class FraudNetworkGraph {
     }
 
     createLegend() {
-        const legendData = [
-            { label: 'Fraud (Blocked)', color: '#f85149' },
-            { label: 'High Risk', color: '#d29922' },
-            { label: 'Low Risk', color: '#3fb950' }
-        ];
-
-        const legend = this.svg.append('g')
-            .attr('class', 'legend')
-            .attr('transform', `translate(16, 16)`);
-
-        legend.append('rect')
-            .attr('x', -8)
-            .attr('y', -8)
-            .attr('width', 140)
-            .attr('height', legendData.length * 24 + 16)
-            .attr('rx', 6)
-            .attr('fill', 'rgba(22, 27, 34, 0.9)')
-            .attr('stroke', 'rgba(255,255,255,0.1)');
-
-        legendData.forEach((item, i) => {
-            const g = legend.append('g')
-                .attr('transform', `translate(0, ${i * 24})`);
-
-            g.append('circle')
-                .attr('r', 5)
-                .attr('fill', item.color);
-
-            g.append('text')
-                .attr('x', 14)
-                .attr('y', 4)
-                .attr('fill', '#8b949e')
-                .attr('font-size', '11px')
-                .text(item.label);
-        });
+        // Legend is now in HTML panel footer, no need for SVG legend
+        // This keeps the method in case we want to re-enable it later
     }
 
     async loadData() {
@@ -184,7 +152,7 @@ class FraudNetworkGraph {
             .attr('x', this.options.width / 2)
             .attr('y', this.options.height / 2)
             .attr('text-anchor', 'middle')
-            .attr('fill', '#8b949e')
+            .attr('fill', '#6b7280')
             .attr('font-size', '14px')
             .text('Loading network data...');
     }
@@ -196,7 +164,7 @@ class FraudNetworkGraph {
             .attr('x', this.options.width / 2)
             .attr('y', this.options.height / 2)
             .attr('text-anchor', 'middle')
-            .attr('fill', '#f85149')
+            .attr('fill', '#c9553d')
             .attr('font-size', '14px')
             .text(message);
     }
@@ -407,16 +375,18 @@ class FraudNetworkGraph {
     }
 
     getNodeColor(node) {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
         if (node.is_fraud) {
-            return '#f85149';
+            return isDark ? '#f87171' : '#ef4444';
         }
         if (node.risk_score > 0.7) {
-            return '#d29922';
+            return isDark ? '#fbbf24' : '#f59e0b';
         }
         if (node.risk_score > 0.4) {
-            return '#58a6ff';
+            return isDark ? '#60a5fa' : '#3b82f6';
         }
-        return '#3fb950';
+        return isDark ? '#4ade80' : '#10b981';
     }
 
     getEdgeColor(edge) {

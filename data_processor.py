@@ -222,6 +222,33 @@ def build_fraud_network(time_window_seconds=1800, similarity_threshold=0.5, max_
                     'similarity': feature_sim
                 })
     
+    # Detect fraud sessions
+    sessions = detect_fraud_sessions(combined_df)
+    
+    # Calculate attack signature for fraud nodes
+    fraud_nodes = [n for n in nodes if n['is_fraud']]
+    attack_signature = get_attack_signature(fraud_nodes)
+    
+    # Build result
+    result = {
+        'nodes': nodes,
+        'edges': edges,
+        'sessions': sessions,
+        'stats': {
+            'total_nodes': len(nodes),
+            'total_edges': len(edges),
+            'fraud_count': len(fraud_nodes),
+            'sessions_detected': len(sessions),
+            'attack_signature': attack_signature
+        }
+    }
+    
+    _network_cache = result
+    print(f"✓ Built network: {len(nodes)} nodes, {len(edges)} edges, {len(sessions)} sessions")
+    
+    return result
+
+
 def get_cluster_explanation(session_id, nodes):
     """
     Generate SHAP explanations for a cluster/session.
