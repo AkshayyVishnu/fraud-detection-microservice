@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🛡️ Merchant Shield - Fraud Detection Microservice
 
 A comprehensive machine learning-powered fraud detection system for credit card transactions, featuring real-time risk assessment, cost-optimized threshold selection, and interactive visualizations.
@@ -75,7 +74,7 @@ Credit card fraud is a significant challenge in e-commerce, with billions of dol
 ### Key Design Decisions
 
 - **Time-based splitting**: Critical for fraud detection to avoid future information leakage
-- **PR-AUC optimization**: Better than ROC-AUC for imbalanced datasets
+- **PR-AUC optimization**: Better than ROC-AUC for imbalanced datasets — with 0.173% fraud, ROC-AUC stays misleadingly high (~0.99) regardless of model quality
 - **Stratified CV without shuffle**: Maintains temporal order while ensuring class balance
 - **Model calibration**: Ensures probability scores are well-calibrated for threshold selection
 - **Multi-threshold evaluation**: Allows business to choose threshold based on precision/recall trade-offs
@@ -84,24 +83,29 @@ Credit card fraud is a significant challenge in e-commerce, with billions of dol
 
 ## ✨ Features
 
-### Core Features
+### Dashboard
+- **Real-time Metrics**: Live transaction monitoring with animated counters
+- **Fraud Network Graph**: D3.js force-directed visualization of transaction relationships
+- **Temporal Heatmap**: Time-based fraud pattern analysis ("Fraud Time Machine")
+- **Risk Distribution**: Interactive donut chart
 
-- 🔍 **Real-time Fraud Detection**: Instant risk assessment for incoming transactions
-- 📊 **Interactive Dashboard**: Real-time transaction monitoring with live updates via WebSocket
-- 📈 **Fraud Time Machine**: Temporal heatmap visualization of fraud patterns
-- 🎯 **Cost-Optimized Thresholds**: Find optimal decision threshold based on FP/FN costs
-- 📉 **Model Evaluation**: Comprehensive evaluation at multiple thresholds with confusion matrices
-- 🔬 **Model Explainability**: SHAP values for understanding model predictions
-- 📝 **Admin Audit Log**: Review flagged and blocked transactions
-- 🧪 **Transaction Analysis**: Submit transactions for instant risk scoring
+### Analyze Page
+- **Transaction Analysis**: Submit transactions for instant fraud scoring
+- **Model Explainability**: SHAP values for understanding individual predictions
+- **Train New Model**: Kick off training and watch live loss/metric charts via WebSocket
+- **Feature Importance**: Human-readable explanations (not raw V1–V28 labels)
+- **Cost-Optimized Thresholds**: Find the decision threshold that minimizes FP/FN cost
 
-### Advanced Features
+### Audit Log
+- **Transaction History**: Review all flagged and blocked transactions
+- **Filtering**: Filter by status (approved/flagged/blocked)
+- **Statistics**: Detection rate and fraud prevention metrics
 
+### Advanced
 - **Hyperparameter Optimization**: Automated tuning using Optuna
-- **Model Calibration**: Probability calibration for accurate risk assessment
-- **Feature Importance Analysis**: Identify most important features for fraud detection
+- **Model Calibration**: Isotonic regression for accurate probability estimates
 - **Export Model to Text**: Human-readable model representation
-- **Multiple Model Versions**: Support for both calibrated and uncalibrated models
+- **Multiple Model Versions**: Supports both calibrated and uncalibrated models
 
 ---
 
@@ -178,31 +182,11 @@ The project uses the [Kaggle Credit Card Fraud Detection Dataset](https://www.ka
 
 ## 🚀 Getting Started
 
-### Using the Enhanced UI Branch (Recommended)
-
-This project has a modernized UI on the `redesign/calm-financial-ui` branch:
-
-```bash
-# Clone and checkout the enhanced UI branch
-git clone https://github.com/AkshayyVishnu/fraud-detection-microservice.git
-cd fraud-detection-microservice
-git checkout redesign/calm-financial-ui
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the server
-python app.py
-```
-
-Navigate to **http://127.0.0.1:5000/** in your browser.
-
-### Option 1: Run with Pre-trained Model (Main Branch)
+### Option 1: Run with a Pre-trained Model
 
 If you have a pre-trained model in the `models/` directory:
 
 ```bash
-git checkout main
 pip install -r requirements.txt
 python app.py
 ```
@@ -242,22 +226,23 @@ Then open your browser and navigate to:
    python app.py
    ```
 
+You can also trigger training directly from the **Analyze** page in the UI — it streams live progress over WebSocket instead of the command line.
+
 ---
 
 ## 📁 Project Structure
 
 ```
 fraud-detection-microservice/
-├── app.py                      # Main Flask application
+├── app.py                      # Flask + SocketIO application
 ├── config.py                   # Configuration settings
-├── model_training.py           # Model training script with Optuna optimization
-├── eval.py                     # Model evaluation script
+├── model_training.py           # Optuna-optimized training (time-based split, PR-AUC)
+├── eval.py                     # Evaluates the saved model at multiple thresholds
 ├── loss.py                     # Cost optimization module
 ├── export_models_to_text.py    # Export models to readable format
-├── data_preprocessing.py       # Data preprocessing utilities
+├── data_preprocessing.py       # Data loading & preprocessing utilities
 ├── data_processor.py           # Data processing and visualization
 ├── model_explainer.py          # SHAP-based model explainability
-├── train_model.py              # Alternative training script
 ├── transaction_simulator.py    # Transaction simulation utilities
 │
 ├── models/                     # Trained models directory
@@ -268,64 +253,21 @@ fraud-detection-microservice/
 │
 ├── templates/                  # HTML templates
 │   ├── dashboard.html          # Main dashboard
-│   ├── analyze.html            # Transaction analysis form
+│   ├── analyze.html            # Transaction analysis + training
 │   └── audit.html              # Admin audit log
 │
 ├── static/                     # Static assets
-│   ├── styles.css              # CSS styles
+│   ├── styles.css              # Premium fintech design system
 │   ├── app.js                  # Dashboard JavaScript
-│   ├── network.js              # Network visualization
-│   └── realtime.js             # Real-time updates
+│   ├── network.js              # D3.js fraud network graph
+│   ├── temporal.js             # Temporal heatmap
+│   └── realtime.js             # Live transaction feed (SocketIO)
 │
 ├── data/                       # Data directory (empty, add dataset here)
 ├── creditcard.csv/             # Dataset location
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
 ```
-
----
-
-## 📡 API Documentation
-
-### Base URL
-
-```
-http://127.0.0.1:5000
-```
-
-### Endpoints
-
-#### 1. POST `/api/analyze-risk`
-Navigate to **http://127.0.0.1:5000/** in your browser.
-
-### Using Main Branch
-
-```bash
-git checkout main
-pip install flask
-python app.py
-```
-
----
-
-## ✨ Features
-
-### Dashboard
-- **Real-time Metrics**: Live transaction monitoring with animated counters
-- **Fraud Network Graph**: D3.js force-directed visualization of transaction relationships
-- **Temporal Heatmap**: Time-based fraud pattern analysis
-- **Risk Distribution**: Interactive donut chart
-
-### Analyze Page
-- **Transaction Analysis**: Submit transactions for instant fraud scoring
-- **Train New Model** (UI Branch): Upload datasets and train models with real-time loss visualization
-- **Feature Importance**: Human-readable explanations (not V1-V28 labels)
-- **Live Metrics**: Training progress with performance charts
-
-### Audit Log
-- **Transaction History**: Review all flagged and blocked transactions
-- **Filtering**: Filter by status (approved/flagged/blocked)
-- **Statistics**: Detection rate and fraud prevention metrics
 
 ---
 
@@ -456,6 +398,14 @@ Get temporal fraud pattern data for heatmap visualization.
 
 Get fraud network graph data for D3.js visualization.
 
+#### Training
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/train-model` | Start model training (streams progress over SocketIO) |
+| GET | `/api/training-status` | Get training progress |
+| GET | `/api/feature-importance` | Get feature importance with human-readable names |
+
 ---
 
 ## 🎓 Model Training
@@ -511,66 +461,18 @@ python eval.py
    - Confusion matrices for each threshold
    - PR-AUC (overall performance metric)
 
-### Example Output
+### Latest Results
 
-```
-Evaluation at Multiple Thresholds
-================================================================================
-Threshold    Precision    Recall       F1-Score     Accuracy     TN      FP      FN      TP
---------------------------------------------------------------------------------
-0.10         0.8234       0.9567       0.8852       0.9987       56800   150     5       95
-0.20         0.8756       0.9123       0.8936       0.9989       56920   80      9       91
-...
-```
+On the held-out time-based test set (56,962 transactions, 75 frauds):
 
----
-=======
----
+| Threshold | Precision | Recall | F1 |
+|---|---|---|---|
+| 0.20 | 85.3% | 77.3% | 81.1% |
+| 0.50 | 90.5% | 76.0% | 82.6% |
 
-## 📁 Project Structure
-
-```
-merchant-shield/
-├── app.py                  # Flask + SocketIO application
-├── train_model.py          # Standalone training script
-├── model_training.py       # Optuna-optimized training
-├── data_preprocessing.py   # Data loading utilities
-├── static/
-│   ├── styles.css          # Premium fintech design system
-│   ├── app.js              # Dashboard JavaScript
-│   ├── network.js          # D3.js fraud network graph
-│   ├── temporal.js         # Temporal heatmap
-│   └── training.js         # Training UI (live charts)
-├── templates/
-│   ├── dashboard.html      # Main dashboard
-│   ├── analyze.html        # Analysis + training
-│   └── audit.html          # Audit log
-├── models/                 # Saved ML models
-└── data/                   # Dataset directory
-```
+Overall **PR-AUC: 0.8034**
 
 ---
-
-## 🧠 ML Model
-
-Train a model from the UI or command line:
-
-```bash
-# Command line training
-python train_model.py
-
-# Model files saved to:
-# - models/fraud_detector.pkl
-# - models/scaler.pkl
-# - models/feature_info.pkl
-```
-
-Target: **>95% AUC-ROC** with XGBoost + SMOTE for class imbalance.
-
----
-
-## 📝 License
->>>>>>> c3d2a781b8b6458613d89217dca4da41c353e94b
 
 ## 📸 Screenshots & Demos
 
