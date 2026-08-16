@@ -163,7 +163,7 @@ def main():
     
     # Create time-based train-test split (same as training: 80/20)
     print("\n4. Creating time-based train-test split (80/20)...")
-    split_idx = int(0.8 * len(df))
+    split_idx = int(0.8  * len(df))
     X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
     

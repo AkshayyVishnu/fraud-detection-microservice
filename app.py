@@ -482,7 +482,7 @@ def optimize_threshold():
     except FileNotFoundError as e:
         return jsonify({"error": f"Model file not found: {str(e)}"}), 404
     except Exception as e:
-        return jsonify({\"error\": f\"Error during optimization: {str(e)}\"}), 500
+        return jsonify({"error": f"Error during optimization: {str(e)}"}), 500
 
 # ============================================================================
 # TRAINING ENDPOINTS
@@ -571,25 +571,31 @@ def train_model_endpoint():
             socketio.emit('training_started', TRAINING_STATE)
             
             # Import training modules
-            from train_model import load_and_prepare_data, scale_features
             from sklearn.model_selection import train_test_split
+            from sklearn.preprocessing import StandardScaler
             from imblearn.over_sampling import SMOTE
             import xgboost as xgb
             from sklearn.metrics import roc_auc_score
-            
+
             TRAINING_STATE["status"] = "loading_data"
             socketio.emit('training_progress', TRAINING_STATE)
-            
-            # Load data
-            X, y, feature_cols = load_and_prepare_data()
-            
+
+            # Load data (train_model.py, which this used to import from, no longer exists;
+            # data_preprocessing.load_dataset is the live equivalent)
+            df = load_dataset_preprocessing()
+            feature_cols = [f'V{i}' for i in range(1, 29)] + ['Amount', 'Time']
+            X = df[feature_cols].copy()
+            y = df['Class'].copy()
+
             # Split
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=0.2, random_state=42, stratify=y
             )
-            
+
             # Scale
-            X_train_scaled, X_test_scaled, scaler = scale_features(X_train, X_test)
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
             
             TRAINING_STATE["status"] = "applying_smote"
             socketio.emit('training_progress', TRAINING_STATE)
