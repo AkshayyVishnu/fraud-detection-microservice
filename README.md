@@ -1,24 +1,83 @@
-# The Merchant Shield 🛡️
-## Fraud Detection API for E-commerce Merchants
+# 🛡️ Merchant Shield - Fraud Detection Microservice
 
-A lightweight machine learning microservice that provides instant fraud risk assessment for transactions with real-time training capabilities.
+A comprehensive machine learning-powered fraud detection system for credit card transactions, featuring real-time risk assessment, cost-optimized threshold selection, and interactive visualizations.
+
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0.0-green.svg)](https://flask.palletsprojects.com/)
+[![XGBoost](https://img.shields.io/badge/XGBoost-2.0.3-orange.svg)](https://xgboost.readthedocs.io/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## 🚀 Quick Start
+## 📋 Table of Contents
 
-```bash
-git clone https://github.com/AkshayyVishnu/fraud-detection-microservice.git
-cd fraud-detection-microservice
+- [Problem Statement](#-problem-statement)
+- [Approach & Methodology](#-approach--methodology)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Installation](#-installation)
+- [Getting Started](#-getting-started)
+- [Project Structure](#-project-structure)
+- [API Documentation](#-api-documentation)
+- [Model Training](#-model-training)
+- [Model Evaluation](#-model-evaluation)
+- [Screenshots & Demos](#-screenshots--demos)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-# Install dependencies
-pip install -r requirements.txt
+---
 
-# Run the server
-python app.py
-```
+## 🎯 Problem Statement
 
-Navigate to **http://127.0.0.1:5000/** in your browser.
+Credit card fraud is a significant challenge in e-commerce, with billions of dollars lost annually. Traditional rule-based fraud detection systems are:
+- **Rigid**: Cannot adapt to evolving fraud patterns
+- **High false positive rates**: Lead to customer friction and lost revenue
+- **Inefficient**: Cannot balance the cost of false positives vs. false negatives optimally
+- **Limited scalability**: Struggle with high transaction volumes
+
+**Merchant Shield** addresses these challenges by providing:
+- Machine learning-based fraud detection with high accuracy
+- Real-time risk assessment with sub-second response times
+- Cost-optimized threshold selection based on business requirements
+- Interactive dashboards for monitoring and analysis
+- Model explainability using SHAP values
+
+---
+
+## 🔬 Approach & Methodology
+
+### Machine Learning Pipeline
+
+1. **Data Preprocessing**
+   - Time-based train-test split (80/20) to prevent data leakage
+   - Feature scaling using StandardScaler
+   - Handles highly imbalanced dataset (~0.17% fraud rate)
+
+2. **Model Training**
+   - **Algorithm**: XGBoost Classifier with gradient boosting
+   - **Hyperparameter Optimization**: Optuna with TPE sampler (50 trials)
+   - **Cross-Validation**: 5-fold Stratified K-Fold (no shuffle to maintain temporal order)
+   - **Optimization Metric**: PR-AUC (Precision-Recall Area Under Curve)
+   - **Model Calibration**: Isotonic regression for probability calibration
+
+3. **Evaluation Strategy**
+   - Time-based split ensures no temporal leakage
+   - Test set used only once for final evaluation
+   - Comprehensive evaluation at multiple probability thresholds (0.1 to 0.9)
+   - Metrics: Precision, Recall, F1-Score, Accuracy, PR-AUC
+
+4. **Cost Optimization**
+   - Calculates total cost: `Cost = FP × cost_fp + FN × cost_fn`
+   - Finds optimal threshold that minimizes total cost
+   - Supports business-specific cost structures
+
+### Key Design Decisions
+
+- **Time-based splitting**: Critical for fraud detection to avoid future information leakage
+- **PR-AUC optimization**: Better than ROC-AUC for imbalanced datasets — with 0.173% fraud, ROC-AUC stays misleadingly high (~0.99) regardless of model quality
+- **Stratified CV without shuffle**: Maintains temporal order while ensuring class balance
+- **Model calibration**: Ensures probability scores are well-calibrated for threshold selection
+- **Multi-threshold evaluation**: Allows business to choose threshold based on precision/recall trade-offs
 
 ---
 
@@ -27,96 +86,384 @@ Navigate to **http://127.0.0.1:5000/** in your browser.
 ### Dashboard
 - **Real-time Metrics**: Live transaction monitoring with animated counters
 - **Fraud Network Graph**: D3.js force-directed visualization of transaction relationships
-- **Temporal Heatmap**: Time-based fraud pattern analysis
+- **Temporal Heatmap**: Time-based fraud pattern analysis ("Fraud Time Machine")
 - **Risk Distribution**: Interactive donut chart
 
 ### Analyze Page
 - **Transaction Analysis**: Submit transactions for instant fraud scoring
-- **Train New Model**: Upload datasets and train models with real-time loss visualization
-- **Feature Importance**: Human-readable explanations (not V1-V28 labels)
-- **Live Metrics**: Training progress with performance charts
+- **Model Explainability**: SHAP values for understanding individual predictions
+- **Train New Model**: Kick off training and watch live loss/metric charts via WebSocket
+- **Feature Importance**: Human-readable explanations (not raw V1–V28 labels)
+- **Cost-Optimized Thresholds**: Find the decision threshold that minimizes FP/FN cost
 
 ### Audit Log
 - **Transaction History**: Review all flagged and blocked transactions
 - **Filtering**: Filter by status (approved/flagged/blocked)
 - **Statistics**: Detection rate and fraud prevention metrics
 
+### Advanced
+- **Hyperparameter Optimization**: Automated tuning using Optuna
+- **Model Calibration**: Isotonic regression for accurate probability estimates
+- **Export Model to Text**: Human-readable model representation
+- **Multiple Model Versions**: Supports both calibrated and uncalibrated models
+
 ---
 
-## 🔌 API Endpoints
+## 🛠 Tech Stack
 
-### Analysis
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/analyze-risk` | Analyze transaction for fraud risk |
-| GET | `/api/transactions` | Get recent transactions |
-| GET | `/api/stats` | Get dashboard statistics |
-| GET | `/api/temporal-data` | Get temporal fraud patterns |
+### Backend
+- **Python 3.8+**: Core programming language
+- **Flask 3.0.0**: Web framework for API and web interface
+- **Flask-SocketIO**: Real-time bidirectional communication
+- **XGBoost 2.0.3**: Gradient boosting framework for ML model
+- **scikit-learn**: ML utilities (metrics, calibration, preprocessing)
+- **Optuna**: Hyperparameter optimization framework
+- **SHAP**: Model explainability and feature importance
+- **Pandas & NumPy**: Data processing and manipulation
+- **Joblib**: Model serialization
 
-### Training
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/train-model` | Start model training |
-| GET | `/api/training-status` | Get training progress |
-| GET | `/api/feature-importance` | Get feature importance with readable names |
+### Frontend
+- **HTML5/CSS3**: User interface
+- **JavaScript**: Interactive dashboard functionality
+- **D3.js**: Data visualization (fraud network graph)
+- **WebSocket**: Real-time updates
 
-### Example: Analyze Risk
-```json
-POST /api/analyze-risk
-{
-    "amount": 9999.00,
-    "time": 13620,
-    "v1": -18.5,
-    ...
-    "v28": -0.87
-}
+### Development Tools
+- **pytest**: Testing framework
+- **black**: Code formatting
+- **flake8**: Linting
+
+---
+
+## 📦 Installation
+
+### Prerequisites
+
+- Python 3.8 or higher
+- pip (Python package manager)
+- Git (for cloning the repository)
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/AkshayyVishnu/fraud-detection-microservice.git
+cd fraud-detection-microservice
 ```
+
+### Step 2: Create Virtual Environment (Recommended)
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
+
+### Step 3: Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 4: Download Dataset
+
+The project uses the [Kaggle Credit Card Fraud Detection Dataset](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud).
+
+1. Download the dataset from Kaggle
+2. Extract `creditcard.csv` to `creditcard.csv/creditcard.csv` (or update `config.py` with your path)
+
+**Note**: Due to dataset size, it's not included in the repository. You'll need to download it separately.
+
+---
+
+## 🚀 Getting Started
+
+### Option 1: Run with a Pre-trained Model
+
+If you have a pre-trained model in the `models/` directory:
+
+```bash
+pip install -r requirements.txt
+python app.py
+```
+
+Then open your browser and navigate to:
+- **Dashboard**: http://127.0.0.1:5000/
+- **Transaction Analysis**: http://127.0.0.1:5000/analyze
+- **Audit Log**: http://127.0.0.1:5000/audit
+
+### Option 2: Train Your Own Model
+
+1. **Train the model**:
+   ```bash
+   python model_training.py
+   ```
+   This will:
+   - Load and preprocess the dataset
+   - Optimize hyperparameters using Optuna (takes 30-60 minutes)
+   - Train the final model
+   - Evaluate at multiple thresholds
+   - Save models to `models/` directory
+
+2. **Evaluate the model**:
+   ```bash
+   python eval.py
+   ```
+   This evaluates the trained model and outputs precision/recall for different thresholds.
+
+3. **Export model to text** (optional):
+   ```bash
+   python export_models_to_text.py
+   ```
+   Creates human-readable text files in `models/text_exports/`.
+
+4. **Run the application**:
+   ```bash
+   python app.py
+   ```
+
+You can also trigger training directly from the **Analyze** page in the UI — it streams live progress over WebSocket instead of the command line.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-merchant-shield/
-├── app.py                  # Flask + SocketIO application
-├── model_training.py       # Optuna-optimized training (time-based split, PR-AUC)
-├── eval.py                 # Evaluates the saved model at multiple thresholds
-├── data_preprocessing.py   # Data loading utilities
-├── static/
-│   ├── styles.css          # Premium fintech design system
-│   ├── app.js              # Dashboard JavaScript
-│   ├── network.js          # D3.js fraud network graph
-│   ├── temporal.js         # Temporal heatmap
-│   └── realtime.js         # Live transaction feed (SocketIO)
-├── templates/
-│   ├── dashboard.html      # Main dashboard
-│   ├── analyze.html        # Analysis + training
-│   └── audit.html          # Audit log
-├── models/                 # Saved ML models
-└── data/                   # Dataset directory
+fraud-detection-microservice/
+├── app.py                      # Flask + SocketIO application
+├── config.py                   # Configuration settings
+├── model_training.py           # Optuna-optimized training (time-based split, PR-AUC)
+├── eval.py                     # Evaluates the saved model at multiple thresholds
+├── loss.py                     # Cost optimization module
+├── export_models_to_text.py    # Export models to readable format
+├── data_preprocessing.py       # Data loading & preprocessing utilities
+├── data_processor.py           # Data processing and visualization
+├── model_explainer.py          # SHAP-based model explainability
+├── transaction_simulator.py    # Transaction simulation utilities
+│
+├── models/                     # Trained models directory
+│   ├── xgb_fraud_model.pkl           # Main trained model
+│   ├── xgb_fraud_model_calibrated.pkl # Calibrated model
+│   ├── best_params.pkl               # Best hyperparameters
+│   └── text_exports/                 # Human-readable model exports
+│
+├── templates/                  # HTML templates
+│   ├── dashboard.html          # Main dashboard
+│   ├── analyze.html            # Transaction analysis + training
+│   └── audit.html              # Admin audit log
+│
+├── static/                     # Static assets
+│   ├── styles.css              # Premium fintech design system
+│   ├── app.js                  # Dashboard JavaScript
+│   ├── network.js              # D3.js fraud network graph
+│   ├── temporal.js             # Temporal heatmap
+│   └── realtime.js             # Live transaction feed (SocketIO)
+│
+├── data/                       # Data directory (empty, add dataset here)
+├── creditcard.csv/             # Dataset location
+├── requirements.txt            # Python dependencies
+└── README.md                   # This file
 ```
 
 ---
 
-## 🧠 ML Model
+## 📡 API Documentation
 
-XGBoost classifier trained on the [Kaggle credit card fraud dataset](https://www.kaggle.com/mlg-ulb/creditcardfraud) (284,807 transactions, 0.173% fraud).
+### Base URL
+
+```
+http://127.0.0.1:5000
+```
+
+### Endpoints
+
+#### 1. POST `/api/analyze-risk`
+```json
+POST /api/analyze-risk
+{
+    "amount": 9999.00,
+    "time": 13620,
+    "v1": -18.5,
+    "v2": 8.23,
+    "v3": 12.45,
+    ...
+    "v28": -0.87
+}
+```
+
+**Response:**
+```json
+{
+    "fraud_probability": 0.87,
+    "is_fraud": true,
+    "risk_level": "HIGH",
+    "temporal_context": {
+        "recent_fraud_count": 5,
+        "time_since_last_fraud": 180,
+        "fraud_contagion_score": 0.73,
+        "transaction_intensity_ratio": 4.2,
+        "current_time_bucket_risk": "CRITICAL"
+    },
+    "shap_explanation": [
+        {
+            "feature": "V14",
+            "value": -19.214,
+            "impact": 0.15
+        },
+        ...
+    ],
+    "recommendation": "BLOCK - High confidence fraud detected"
+}
+```
+
+#### 2. POST `/api/optimize-threshold`
+
+Find the optimal probability threshold that minimizes total cost.
+
+**Request Body:**
+```json
+{
+    "cost_fp": 10.0,  // Cost per false positive
+    "cost_fn": 100.0  // Cost per false negative
+}
+```
+
+**Response:**
+```json
+{
+    "all_thresholds": [
+        {
+            "probability": 0.1,
+            "fp": 150,
+            "fn": 5,
+            "cost": 2000.0,
+            "precision": 0.85,
+            "recall": 0.95,
+            "f1_score": 0.90,
+            "accuracy": 0.998,
+            "tp": 95,
+            "tn": 56800
+        },
+        ...
+    ],
+    "optimal": {
+        "probability": 0.25,
+        "fp": 80,
+        "fn": 12,
+        "cost": 2000.0,
+        ...
+    }
+}
+```
+
+#### 3. GET `/api/transactions`
+
+Get recent transactions.
+
+**Query Parameters:**
+- `limit` (int, optional): Number of transactions to return (default: 20)
+- `status` (string, optional): Filter by status (`approved`, `flagged`, `blocked`)
+
+**Example:**
+```
+GET /api/transactions?limit=50&status=flagged
+```
+
+#### 4. GET `/api/stats`
+
+Get dashboard statistics.
+
+**Response:**
+```json
+{
+    "total_transactions": 1250,
+    "flagged_count": 45,
+    "blocked_count": 12,
+    "approved_count": 1193,
+    "avg_fraud_probability": 0.15,
+    "amount_at_risk": 125000.50,
+    "threat_level": "ELEVATED"
+}
+```
+
+#### 5. GET `/api/temporal-data`
+
+Get temporal fraud pattern data for heatmap visualization.
+
+#### 6. GET `/api/fraud-network`
+
+Get fraud network graph data for D3.js visualization.
+
+#### Training
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/train-model` | Start model training (streams progress over SocketIO) |
+| GET | `/api/training-status` | Get training progress |
+| GET | `/api/feature-importance` | Get feature importance with human-readable names |
+
+---
+
+## 🎓 Model Training
+
+### Training Process
+
+The model training follows a rigorous methodology to prevent data leakage:
+
+1. **Data Loading**: Load credit card transaction dataset
+2. **Time-based Sorting**: Sort all transactions by time
+3. **Train-Test Split**: 80/20 split maintaining temporal order
+4. **Hyperparameter Optimization**: Optuna with 5-fold Stratified CV
+   - Optimizes: learning_rate, n_estimators, max_depth, regularization, etc.
+   - Uses PR-AUC as optimization metric
+5. **Final Model Training**: Train on full training set with best hyperparameters
+6. **Model Calibration**: Apply isotonic regression for probability calibration
+7. **Evaluation**: Evaluate on test set (first time seeing test data)
+
+### Running Training
 
 ```bash
-# Train (Optuna-tuned XGBoost)
 python model_training.py
+```
 
-# Evaluate the saved model at multiple thresholds
+### Expected Output
+
+- Model files saved to `models/`:
+  - `xgb_fraud_model.pkl`: Main trained model
+  - `xgb_fraud_model_calibrated.pkl`: Calibrated version
+  - `best_params.pkl`: Best hyperparameters
+- Training metrics and evaluation results printed to console
+
+---
+
+## 📊 Model Evaluation
+
+### Evaluation Script
+
+Run comprehensive evaluation:
+
+```bash
 python eval.py
 ```
 
-**Methodology:**
-- Time-based train/test split (80/20) — the test set is never touched during tuning
-- Hyperparameters tuned with Optuna over 5-fold Stratified CV (`shuffle=False`, so folds stay in temporal order)
-- Optimized for **PR-AUC**, not ROC-AUC — with 0.173% fraud, ROC-AUC is misleadingly high (~0.99) regardless of model quality; PR-AUC reflects real precision/recall tradeoffs
-- Test set evaluated exactly once, after tuning is finalized
+### What It Does
 
-**Results** (`python eval.py`, on the held-out time-based test set — 56,962 transactions, 75 frauds):
+1. Loads trained model
+2. Loads test dataset
+3. Creates time-based split (same as training)
+4. Evaluates at multiple thresholds (0.1, 0.2, 0.25, ..., 0.9)
+5. Outputs:
+   - Precision, Recall, F1-Score, Accuracy for each threshold
+   - Confusion matrices for each threshold
+   - PR-AUC (overall performance metric)
+
+### Latest Results
+
+On the held-out time-based test set (56,962 transactions, 75 frauds):
 
 | Threshold | Precision | Recall | F1 |
 |---|---|---|---|
@@ -125,10 +472,81 @@ python eval.py
 
 Overall **PR-AUC: 0.8034**
 
-Model files saved to `models/xgb_fraud_model.pkl` (and a calibrated variant, `models/xgb_fraud_model_calibrated.pkl`).
+---
+
+## 📸 Screenshots & Demos
+
+### Dashboard View
+![Dashboard](docs/screenshots/dashboard.png)
+*Real-time transaction monitoring dashboard with live statistics and transaction list*
+
+### Fraud Analysis
+![Analysis](docs/screenshots/analysis.png)
+*Transaction analysis interface with SHAP explanations and risk assessment*
+
+### Audit Log
+![Audit](docs/screenshots/audit.png)
+*Admin audit log for reviewing flagged and blocked transactions*
+
+### Fraud Time Machine
+![Time Machine](docs/screenshots/time-machine.png)
+*Temporal heatmap showing fraud patterns over time*
+
+### Model Evaluation
+![Evaluation](docs/screenshots/evaluation.png)
+*Model evaluation results showing precision/recall for different thresholds*
+
+**Note**: Screenshots should be added to `docs/screenshots/` directory. Create this directory and add your screenshots, then update the paths above.
 
 ---
 
-## 📝 License
+## 🤝 Contributing
 
-MIT License
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Setup
+
+```bash
+# Install development dependencies
+pip install -r requirements.txt
+
+# Run tests (when available)
+pytest
+
+# Format code
+black .
+
+# Lint code
+flake8 .
+```
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- [Kaggle Credit Card Fraud Detection Dataset](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
+- XGBoost development team
+- Optuna developers
+- SHAP library creators
+
+---
+
+## 📧 Contact
+
+For questions, issues, or contributions, please open an issue on GitHub or contact the maintainers.
+
+---
+
+**Built with ❤️ for fraud prevention**
